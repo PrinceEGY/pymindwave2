@@ -94,8 +94,8 @@ class MindWaveMobile2:
             if self.connection_status != ConnectionStatus.CONNECTED:
                 self.connection_status = ConnectionStatus.CONNECTED
                 self._logger.info("Connected to MindWaveMobile2 device!")
-            if "eSense" in parsed:
-                self.signal_quality = parsed["eSense"]["attention"]
+            if "poorSignalLevel" in parsed:
+                self.signal_quality = parsed["poorSignalLevel"]
         else:
             self.connection_status = ConnectionStatus.UNKOWN
             self._logger.warning(f"Unknown connection status, parsed data: {parsed}")
