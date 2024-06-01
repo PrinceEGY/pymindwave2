@@ -20,5 +20,18 @@ class Data:
     def update_data(self, **kwargs):
         for key, value in kwargs.items():
             assert hasattr(self, key), f"Invalid attribute: {key}"
-            self._logger.debug(f"Updating {key} to {value}")
             setattr(self, key, value)
+
+    def __repr__(self) -> str:
+        raw_summary = (
+            ", ".join(map(str, self.raw_data[:5]))
+            + "...."
+            + ", ".join(map(str, self.raw_data[-5:]))
+            + f" (length: {len(self.raw_data)})"
+        )
+        return (
+            f"Data(raw_data={raw_summary}, attention={self.attention}, "
+            f"meditation={self.meditation}, delta={self.delta}, theta={self.theta}, "
+            f"lowAlpha={self.lowAlpha}, highAlpha={self.highAlpha}, lowBeta={self.lowBeta}, "
+            f"highBeta={self.highBeta}, lowGamma={self.lowGamma}, highGamma={self.highGamma})"
+        )
