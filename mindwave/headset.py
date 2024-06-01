@@ -1,6 +1,8 @@
 import json
 import threading
 from mindwave.connector import MindWaveConnector
+from mindwave.data import Data
+from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
 from util.event_handler import EventHandler, EventType
 from util.logger import Logger
@@ -18,6 +20,7 @@ class MindWaveMobile2:
         self.event_handler = EventHandler()
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._connection_retries = 1
+        self._stream_parser = StreamParser()
 
     def connect(self, timeout=15, n_tries=3):
         """Attempt to connect to the MindWaveMobile2 device with a specified number of retries in case of a timeout."""
@@ -53,6 +56,14 @@ class MindWaveMobile2:
         self.connector.disconnect()
         self.event_handler.remove_listener(EventType.ConnectorData, self._update_status)
         self.connection_status = ConnectionStatus.DISCONNECTED
+
+    def add_listener(self, event_type, listener):
+        """Add a listener to the parsed data events. The listener will be called when the parsed data event is triggered."""
+        self._stream_parser.add_listener(event_type, listener)
+
+    def remove_listener(self, event_type, listener):
+        """Remove a listener from the parsed data events. The listener will no longer be called when the parsed data event is triggered."""
+        self._stream_parser.remove_listener(event_type, listener)
 
     def _read_loop(self, timeout):
         t1 = time.perf_counter()
