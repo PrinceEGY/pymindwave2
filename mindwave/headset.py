@@ -90,7 +90,7 @@ class MindWaveMobile2:
                 self.connection_status = ConnectionStatus.IDLE
             elif parsed["status"] == "notscanning":
                 self.connection_status = ConnectionStatus.NOTSCANNING
-        elif "eSense" in parsed or "rawEeg" in parsed:
+        elif "eSense" in parsed or "rawEeg" in parsed or "blinkStrength" in parsed:
             if self.connection_status != ConnectionStatus.CONNECTED:
                 self.connection_status = ConnectionStatus.CONNECTED
                 self._logger.info("Connected to MindWaveMobile2 device!")
