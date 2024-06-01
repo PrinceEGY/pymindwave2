@@ -4,6 +4,10 @@ from util.logger import Logger
 
 
 class StreamParser:
+    """
+    Can be thought of as a wrapper class for Connector Raw data. It processes the incoming data from the stream and triggers events based on the data received.
+    """
+
     def __init__(self):
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.event_handler = EventHandler()
@@ -12,6 +16,9 @@ class StreamParser:
         self._raw_flag = False
 
     def stream_data(self, data):
+        """
+        Processes the incoming data and stream it again.
+        """
         if "blinkStrength" in data:
             self.event_handler.trigger(EventType.Blink, data["blinkStrength"])
             self._logger.debug(
