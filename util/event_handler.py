@@ -6,6 +6,8 @@ from typing import Callable
 class EventType(Enum):
     ConnectorData = 1  # Raw data from the connector only json parsed
     Timeout = 2
+    HeadsetData = 3  # Parsed data from the headset contains all streamed attribtues (see Data class)
+    Blink = 4
 
 
 class EventHandler:
