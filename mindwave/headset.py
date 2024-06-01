@@ -36,7 +36,7 @@ class MindWaveMobile2:
 
         self._connection_retries = 1
 
-        self.event_handler.add_listener(EventType.TimeoutEvent, on_timeout)
+        self.event_handler.add_listener(EventType.Timeout, on_timeout)
         self._attempt_connect(timeout)
 
     def _attempt_connect(self, timeout=15):
@@ -46,12 +46,12 @@ class MindWaveMobile2:
         self.connector.connect()
         thread = threading.Thread(target=self._read_loop, args=(timeout,), daemon=True)
         thread.start()
-        self.event_handler.add_listener(EventType.DataEvent, self._update_status)
+        self.event_handler.add_listener(EventType.ConnectorData, self._update_status)
 
     def disconnect(self):
         self._logger.info("Disconnecting MindWaveMobile2 device...")
         self.connector.disconnect()
-        self.event_handler.remove_listener(EventType.DataEvent, self._update_status)
+        self.event_handler.remove_listener(EventType.ConnectorData, self._update_status)
         self.connection_status = ConnectionStatus.DISCONNECTED
 
     def _read_loop(self, timeout):
@@ -60,7 +60,7 @@ class MindWaveMobile2:
             try:
                 out = self.connector.read()
                 parsed = json.loads(out)
-                self.event_handler(EventType.DataEvent, parsed)
+                self.event_handler(EventType.ConnectorData, data)
             except json.JSONDecodeError:
                 self._logger.error("Error parsing JSON")
             except UnicodeDecodeError as e:
@@ -109,4 +109,4 @@ class MindWaveMobile2:
     def _timeout_disconnect(self):
         self._logger.warning("Connection timed out!")
         self.disconnect()
-        self.event_handler.trigger(EventType.TimeoutEvent)
+        self.event_handler.trigger(EventType.Timeout)

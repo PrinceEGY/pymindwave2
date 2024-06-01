@@ -4,8 +4,8 @@ from typing import Callable
 
 
 class EventType(Enum):
-    DataEvent = 1
-    TimeoutEvent = 2
+    ConnectorData = 1  # Raw data from the connector only json parsed
+    Timeout = 2
 
 
 class EventHandler:
