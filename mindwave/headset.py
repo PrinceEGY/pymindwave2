@@ -19,7 +19,7 @@ class MindWaveMobile2:
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._connection_retries = 1
 
-    def eager_connect(self, timeout=15, n_tries=3):
+    def connect(self, timeout=15, n_tries=3):
         """Attempt to connect to the MindWaveMobile2 device with a specified number of retries in case of a timeout."""
 
         def on_timeout():
@@ -28,16 +28,16 @@ class MindWaveMobile2:
                 self._logger.warning(
                     f"Connection timed out. Retrying Attempt {self._connection_retries} ..."
                 )
-                self.connect(timeout)
+                self._attempt_connect(timeout)
             elif self._connection_retries == n_tries:
                 self._logger.error(
                     "Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!"
                 )
 
         self.event_handler.add_listener(EventType.TimeoutEvent, on_timeout)
-        self.connect(timeout)
+        self._attempt_connect(timeout)
 
-    def connect(self, timeout=15):
+    def _attempt_connect(self, timeout=15):
         """Connect to the MindWaveMobile2 device and start a read loop to process and stream incoming data."""
 
         self._logger.info("Connecting to MindWaveMobile2 device...")
