@@ -92,9 +92,14 @@ class MindWaveMobile2:
     def _update_status(self, data):
         # Set the connection status and signal quality based on the connector data
         # This is a naive way but there are no other ways to determine the connection status
-        # TODO: detect when the state changes from connected to any other state
         # Since the "status" field is not always present in the connector data
         if "status" in data:
+            if self.connection_status == ConnectionStatus.CONNECTED:
+                # Connection changed from connected to something else
+                self.event_handler.remove_listener(
+                    event_type=EventType.ConnectorData,
+                    listener=self._stream_parser,
+                )
             if data["status"] == "scanning":
                 self.connection_status = ConnectionStatus.SCANNING
             elif data["status"] == "idle":
@@ -103,6 +108,10 @@ class MindWaveMobile2:
                 self.connection_status = ConnectionStatus.NOTSCANNING
         elif "eSense" in data or "rawEeg" in data or "blinkStrength" in data:
             if self.connection_status != ConnectionStatus.CONNECTED:
+                self.event_handler.add_listener(
+                    event_type=EventType.ConnectorData,
+                    listener=self._stream_parser,
+                )
                 self.connection_status = ConnectionStatus.CONNECTED
                 self._logger.info("Connected to MindWaveMobile2 device!")
             if "poorSignalLevel" in data:
@@ -110,6 +119,12 @@ class MindWaveMobile2:
         elif "mentalEffort" in data or "familiarity" in data:
             pass
         else:
+            if self.connection_status == ConnectionStatus.CONNECTED:
+                # Connection changed from connected to something else
+                self.event_handler.remove_listener(
+                    event_type=EventType.ConnectorData,
+                    listener=self._stream_parser,
+                )
             self.connection_status = ConnectionStatus.UNKOWN
             self._logger.warning(f"Unknown connection status, data: {data}")
 
