@@ -34,6 +34,8 @@ class MindWaveMobile2:
                     "Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!"
                 )
 
+        self._connection_retries = 1
+
         self.event_handler.add_listener(EventType.TimeoutEvent, on_timeout)
         self._attempt_connect(timeout)
 
