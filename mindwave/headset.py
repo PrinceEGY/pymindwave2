@@ -1,8 +1,8 @@
+from mindwave.session import Session
 import json
 import threading
 from mindwave.connector import MindWaveConnector
 from mindwave.data import Data
-from mindwave.session import Session
 from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
 from util.event_handler import EventHandler, EventType
@@ -18,7 +18,7 @@ class MindWaveMobile2:
         self.connection_status = ConnectionStatus.DISCONNECTED
         self.connector = MindWaveConnector(**connector_args)
         self.signal_quality = 200  # 0-200 (0 indicating a good signal and 200 indicating an off-head state)
-        self.event_handler = EventHandler()
+        self.event_handler = EventHandler()  # Emit ConnectorData events
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._connection_retries = 1
         self._stream_parser = StreamParser()
