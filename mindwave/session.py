@@ -1,6 +1,6 @@
+from mindwave.headset import MindWaveMobile2
 from datetime import datetime
 from mindwave.data import Data
-from mindwave.headset import MindWaveMobile2
 from util.event_handler import EventType
 from util.logger import Logger
 import csv
@@ -13,23 +13,29 @@ class Session:
         capture_blinks: bool = False,
         lazy_start: bool = False,
     ):
-        # TODO: handle capture_blinks
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self.capture_blinks = capture_blinks
+        self.headset = headset
+
         self.start_time = None
         self.end_time = None
         self.is_active = False
         self._is_finished = False
         self._session_data = []
-        self.headset = headset
+
         if not lazy_start:
             self.start()
 
     def start(self) -> None:
-        assert not self.is_active, "Session is already active"
-        assert not self._is_finished, "Session is already finished"
+        assert not self.is_active, "Session is already active!"
+        assert not self._is_finished, "Session is finished!"
         self.headset.add_listener(
             event_type=EventType.HeadsetData, listener=self._collator
         )
+        if self.capture_blinks:
+            self.headset.add_listener(
+                event_type=EventType.Blink, listener=self._blinks_collator
+            )
 
         self.start_time = datetime.now()
         self.is_active = True
@@ -43,6 +49,10 @@ class Session:
         self.headset.remove_listener(
             event_type=EventType.HeadsetData, listener=self._collator
         )
+        if self.capture_blinks:
+            self.headset.remove_listener(
+                event_type=EventType.Blink, listener=self._blinks_collator
+            )
 
         self.is_active = False
         self._is_finished = True
@@ -62,6 +72,7 @@ class Session:
         curr_time = datetime.now().strftime("%H:%M:%S:%f")
         record = {
             "time": curr_time,
+            "event": "headset_data",  # "headset_data" or "blink_detected"
             "attention": data.attention,
             "meditation": data.meditation,
             "delta": data.delta,
@@ -73,9 +84,30 @@ class Session:
             "lowGamma": data.lowGamma,
             "highGamma": data.highGamma,
             "raw_data": data.raw_data,
+            "blink_strength": None,
         }
 
         self._session_data.append(record)
+
+    def _blinks_collator(self, blink_strength: int):
+        self._logger.debug(f"Blink detected: {blink_strength}")
+        curr_time = datetime.now().strftime("%H:%M:%S:%f")
+        record = {
+            "time": curr_time,
+            "event": "blink_detected",
+            "attention": None,
+            "meditation": None,
+            "delta": None,
+            "theta": None,
+            "lowAlpha": None,
+            "highAlpha": None,
+            "lowBeta": None,
+            "highBeta": None,
+            "lowGamma": None,
+            "highGamma": None,
+            "raw_data": None,
+            "blink_strength": blink_strength,
+        }
 
     def __repr__(self) -> str:
         start_time = (
@@ -95,3 +127,5 @@ class Session:
 
     def __len__(self) -> int:
         return len(self._session_data)
+        self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self.headset = headset
