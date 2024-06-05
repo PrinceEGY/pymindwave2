@@ -2,6 +2,7 @@ import json
 import threading
 from mindwave.connector import MindWaveConnector
 from mindwave.data import Data
+from mindwave.session import Session
 from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
 from util.event_handler import EventHandler, EventType
@@ -64,6 +65,10 @@ class MindWaveMobile2:
     def remove_listener(self, event_type, listener):
         """Remove a listener from the parsed data events. The listener will no longer be called when the parsed data event is triggered."""
         self._stream_parser.remove_listener(event_type, listener)
+
+    def record(self) -> Session:
+        """Start a new session and return the session object."""
+        return Session(headset=self)
 
     def _read_loop(self, timeout):
         t1 = time.perf_counter()
