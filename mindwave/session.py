@@ -21,7 +21,7 @@ class Session:
         self.end_time = None
         self.is_active = False
         self._is_finished = False
-        self._session_data = []
+        self._data = []
 
         if not lazy_start:
             self.start()
@@ -62,9 +62,9 @@ class Session:
         assert not self.is_active, "Session is still active"
         assert len(self) > 0, "Session data is empty"
         with open(file_name, mode="w", newline="") as file:
-            writer = csv.DictWriter(file, fieldnames=self._session_data[0].keys())
+            writer = csv.DictWriter(file, fieldnames=self._data[0].keys())
             writer.writeheader()
-            writer.writerows(self._session_data)
+            writer.writerows(self._data)
         self._logger.info(f"Session data saved to {file_name}")
 
     def _collator(self, data: Data):
@@ -87,7 +87,7 @@ class Session:
             "blink_strength": None,
         }
 
-        self._session_data.append(record)
+        self._data.append(record)
 
     def _blinks_collator(self, blink_strength: int):
         self._logger.debug(f"Blink detected: {blink_strength}")
@@ -126,6 +126,6 @@ class Session:
         )
 
     def __len__(self) -> int:
-        return len(self._session_data)
+        return len(self._data)
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.headset = headset
