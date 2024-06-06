@@ -3,7 +3,7 @@ import threading
 from mindwave.connector import MindWaveConnector
 from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
-from util.event_handler import EventHandler, EventType
+from util.event_handler import EventManager, EventType
 from util.logger import Logger
 import time
 
@@ -16,7 +16,7 @@ class MindWaveMobile2:
         self._connection_status = ConnectionStatus.DISCONNECTED
         self.connector = MindWaveConnector(**connector_args)
         self.signal_quality = 200  # 0-200 (0 indicating a good signal and 200 indicating an off-head state)
-        self.event_handler = EventHandler()  # Emit ConnectorData events
+        self.event_manager = EventManager()  # Emit ConnectorData events
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._connection_retries = 1
         self._stream_parser = StreamParser()
@@ -32,7 +32,7 @@ class MindWaveMobile2:
             and self._connection_status != ConnectionStatus.CONNECTED
         ):
             # Connection changed to Connected
-            self.event_handler.add_listener(
+            self.event_manager.add_listener(
                 event_type=EventType.ConnectorData,
                 listener=self._stream_parser,
             )
@@ -42,7 +42,7 @@ class MindWaveMobile2:
             and value != ConnectionStatus.CONNECTED
         ):
             # Connection changed from connected to something else
-            self.event_handler.remove_listener(
+            self.event_manager.remove_listener(
                 event_type=EventType.ConnectorData,
                 listener=self._stream_parser,
             )
@@ -68,7 +68,7 @@ class MindWaveMobile2:
 
         self._connection_retries = 1
 
-        self.event_handler.add_listener(EventType.Timeout, on_timeout)
+        self.event_manager.add_listener(EventType.Timeout, on_timeout)
         self._attempt_connect(timeout)
 
     def _attempt_connect(self, timeout=15):
@@ -78,7 +78,7 @@ class MindWaveMobile2:
         self.connector.connect()
         thread = threading.Thread(target=self._read_loop, args=(timeout,), daemon=True)
         thread.start()
-        self.event_handler.add_listener(EventType.ConnectorData, self._update_status)
+        self.event_manager.add_listener(EventType.ConnectorData, self._update_status)
 
     def disconnect(self):
         if self.connection_status == ConnectionStatus.DISCONNECTED:
@@ -86,7 +86,7 @@ class MindWaveMobile2:
             return
         self._logger.info("Disconnecting MindWaveMobile2 device...")
         self.connection_status = ConnectionStatus.DISCONNECTED
-        self.event_handler.remove_listener(EventType.ConnectorData, self._update_status)
+        self.event_manager.remove_listener(EventType.ConnectorData, self._update_status)
         self.connector.disconnect()
 
     def add_listener(self, event_type, listener):
@@ -107,7 +107,7 @@ class MindWaveMobile2:
             try:
                 out = self.connector.read()
                 data = json.loads(out)
-                self.event_handler(EventType.ConnectorData, data)
+                self.event_manager(EventType.ConnectorData, data)
             except json.JSONDecodeError:
                 self._logger.error("Error parsing JSON")
             except UnicodeDecodeError as e:
@@ -159,4 +159,4 @@ class MindWaveMobile2:
     def _timeout_disconnect(self):
         self._logger.warning("Connection timed out!")
         self.disconnect()
-        self.event_handler.trigger(EventType.Timeout)
+        self.event_manager(EventType.Timeout)

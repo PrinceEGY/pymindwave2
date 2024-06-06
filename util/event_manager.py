@@ -10,7 +10,7 @@ class EventType(Enum):
     Blink = 4
 
 
-class EventHandler:
+class EventManager:
     def __init__(self):
         self.__listeners = defaultdict(list)
 
