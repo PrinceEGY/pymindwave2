@@ -1,8 +1,6 @@
-from mindwave.session import Session
 import json
 import threading
 from mindwave.connector import MindWaveConnector
-from mindwave.data import Data
 from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
 from util.event_handler import EventHandler, EventType
@@ -15,13 +13,42 @@ class MindWaveMobile2:
         self,
         **connector_args,
     ):
-        self.connection_status = ConnectionStatus.DISCONNECTED
+        self._connection_status = ConnectionStatus.DISCONNECTED
         self.connector = MindWaveConnector(**connector_args)
         self.signal_quality = 200  # 0-200 (0 indicating a good signal and 200 indicating an off-head state)
         self.event_handler = EventHandler()  # Emit ConnectorData events
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._connection_retries = 1
         self._stream_parser = StreamParser()
+
+    @property
+    def connection_status(self):
+        return self._connection_status
+
+    @connection_status.setter
+    def connection_status(self, value: ConnectionStatus):
+        if (
+            value == ConnectionStatus.CONNECTED
+            and self._connection_status != ConnectionStatus.CONNECTED
+        ):
+            # Connection changed to Connected
+            self.event_handler.add_listener(
+                event_type=EventType.ConnectorData,
+                listener=self._stream_parser,
+            )
+            self._logger.info("Connected to MindWaveMobile2 device!")
+        elif (
+            self._connection_status == ConnectionStatus.CONNECTED
+            and value != ConnectionStatus.CONNECTED
+        ):
+            # Connection changed from connected to something else
+            self.event_handler.remove_listener(
+                event_type=EventType.ConnectorData,
+                listener=self._stream_parser,
+            )
+            self._logger.info("MindWaveMobile2 device Disconnected!")
+
+        self._connection_status = value
 
     def connect(self, timeout=15, n_tries=3):
         """Attempt to connect to the MindWaveMobile2 device with a specified number of retries in case of a timeout."""
@@ -32,6 +59,7 @@ class MindWaveMobile2:
                 self._logger.warning(
                     f"Connection timed out. Retrying Attempt {self._connection_retries} ..."
                 )
+                time.sleep(1)
                 self._attempt_connect(timeout)
             elif self._connection_retries == n_tries:
                 self._logger.error(
@@ -53,10 +81,13 @@ class MindWaveMobile2:
         self.event_handler.add_listener(EventType.ConnectorData, self._update_status)
 
     def disconnect(self):
+        if self.connection_status == ConnectionStatus.DISCONNECTED:
+            self._logger.warning("MindWaveMobile2 device is already disconnected!")
+            return
         self._logger.info("Disconnecting MindWaveMobile2 device...")
-        self.connector.disconnect()
-        self.event_handler.remove_listener(EventType.ConnectorData, self._update_status)
         self.connection_status = ConnectionStatus.DISCONNECTED
+        self.event_handler.remove_listener(EventType.ConnectorData, self._update_status)
+        self.connector.disconnect()
 
     def add_listener(self, event_type, listener):
         """Add a listener to the parsed data events. The listener will be called when the parsed data event is triggered."""
@@ -72,7 +103,7 @@ class MindWaveMobile2:
 
     def _read_loop(self, timeout):
         t1 = time.perf_counter()
-        while True:
+        while self.connector.is_connected():
             try:
                 out = self.connector.read()
                 data = json.loads(out)
@@ -82,6 +113,11 @@ class MindWaveMobile2:
             except UnicodeDecodeError as e:
                 self._logger.error(f"UnicodeDecodeError: {e}, data: {out}")
             except Exception as e:
+                # FIXME: this is raised when the connection is closed normally
+                # this is because of this method runs in a separate thread
+                # which causes the disconnect method to be called twice
+                # there will be no issues anyway since the connection is already closed
+                # but this should be handled properly for better code quality
                 self._logger.error(f"An error occurred: {e}")
                 self.disconnect()
                 break
@@ -99,12 +135,6 @@ class MindWaveMobile2:
         # This is a naive way but there are no other ways to determine the connection status
         # Since the "status" field is not always present in the connector data
         if "status" in data:
-            if self.connection_status == ConnectionStatus.CONNECTED:
-                # Connection changed from connected to something else
-                self.event_handler.remove_listener(
-                    event_type=EventType.ConnectorData,
-                    listener=self._stream_parser,
-                )
             if data["status"] == "scanning":
                 self.connection_status = ConnectionStatus.SCANNING
             elif data["status"] == "idle":
@@ -112,24 +142,12 @@ class MindWaveMobile2:
             elif data["status"] == "notscanning":
                 self.connection_status = ConnectionStatus.NOTSCANNING
         elif "eSense" in data or "rawEeg" in data or "blinkStrength" in data:
-            if self.connection_status != ConnectionStatus.CONNECTED:
-                self.event_handler.add_listener(
-                    event_type=EventType.ConnectorData,
-                    listener=self._stream_parser,
-                )
-                self.connection_status = ConnectionStatus.CONNECTED
-                self._logger.info("Connected to MindWaveMobile2 device!")
+            self.connection_status = ConnectionStatus.CONNECTED
             if "poorSignalLevel" in data:
                 self.signal_quality = data["poorSignalLevel"]
         elif "mentalEffort" in data or "familiarity" in data:
             pass
         else:
-            if self.connection_status == ConnectionStatus.CONNECTED:
-                # Connection changed from connected to something else
-                self.event_handler.remove_listener(
-                    event_type=EventType.ConnectorData,
-                    listener=self._stream_parser,
-                )
             self.connection_status = ConnectionStatus.UNKOWN
             self._logger.warning(f"Unknown connection status, data: {data}")
 
