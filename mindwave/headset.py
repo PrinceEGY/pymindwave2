@@ -3,7 +3,7 @@ import threading
 from mindwave.connector import MindWaveConnector
 from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
-from util.event_handler import EventManager, EventType
+from util.event_manager import EventManager, EventType
 from util.logger import Logger
 import time
 

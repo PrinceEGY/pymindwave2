@@ -1,5 +1,5 @@
 from mindwave.data import Data
-from util.event_handler import EventHandler, EventType
+from util.event_manager import EventManager, EventType
 from util.logger import Logger
 
 
@@ -10,7 +10,7 @@ class StreamParser:
 
     def __init__(self):
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
-        self.event_handler = EventHandler()
+        self.event_manager = EventManager()
         self._data = Data()
         self._raw_data = []
         self._raw_flag = False
@@ -20,14 +20,14 @@ class StreamParser:
         Processes the incoming data and stream it again.
         """
         if "blinkStrength" in data:
-            self.event_handler.trigger(EventType.Blink, data["blinkStrength"])
+            self.event_manager(EventType.Blink, data["blinkStrength"])
             self._logger.debug(
                 f"Blink Triggered with strength: {data['blinkStrength']}"
             )
         else:
             data = self._parse_data(data)
             if self._raw_flag:
-                self.event_handler.trigger(EventType.HeadsetData, self._data)
+                self.event_manager(EventType.HeadsetData, self._data)
                 self._raw_flag = False
                 self._logger.debug(f"data streamed: {self._data}")
 
@@ -35,10 +35,10 @@ class StreamParser:
         self.stream_data(data)
 
     def add_listener(self, event_type, listener):
-        self.event_handler.add_listener(event_type, listener)
+        self.event_manager.add_listener(event_type, listener)
 
     def remove_listener(self, event_type, listener):
-        self.event_handler.remove_listener(event_type, listener)
+        self.event_manager.remove_listener(event_type, listener)
 
     def _parse_data(self, data):
         if "eSense" in data:
