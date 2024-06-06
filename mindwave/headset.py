@@ -154,7 +154,7 @@ class MindWaveMobile2:
 
         if self.connection_status != ConnectionStatus.CONNECTED:
             self._logger.debug(
-                f"Connection Status: {self.connection_status}, Signal Quality: {self.signal_quality}, Data: {data}"
+                f"Connection Status: {self.connection_status.name}, Signal Quality: {self.signal_quality}, Data: {data}"
             )
 
     def _timeout_disconnect(self):
