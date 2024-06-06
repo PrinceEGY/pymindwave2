@@ -15,24 +15,17 @@ class EventManager:
         self.__listeners = defaultdict(list)
 
     def add_listener(self, event_type: EventType, listener: Callable):
+    def add_listener(self, event_type: EventType, listener: Callable) -> None:
         assert listener not in self.__listeners[event_type], "Listener already exists"
         self.__listeners[event_type].append(listener)
 
-    def remove_listener(self, event_type: EventType, listener: Callable):
+    def remove_listener(self, event_type: EventType, listener: Callable) -> None:
         assert listener in self.__listeners[event_type], "Listener does not exist"
         self.__listeners[event_type].remove(listener)
 
-    def trigger(self, event_type: EventType, *args, **kwargs):
+    def trigger(self, event_type: EventType, *args, **kwargs) -> None:
         for listener in self.__listeners[event_type]:
             listener(*args, **kwargs)
-
-    def __iadd__(self, event_type: EventType, listener: Callable):
-        self.add_listener(event_type, listener)
-        return self
-
-    def __isub__(self, event_type: EventType, listener: Callable):
-        self.remove_listener(event_type, listener)
-        return self
 
     def __call__(self, event_type: EventType, *args, **kwargs):
         self.trigger(event_type, *args, **kwargs)

@@ -59,29 +59,34 @@ class MindWaveMobile2:
                 self._logger.warning(
                     f"Connection timed out. Retrying Attempt {self._connection_retries} ..."
                 )
-                time.sleep(1)
+                time.sleep(3)
                 self._attempt_connect(timeout)
             elif self._connection_retries == n_tries:
                 self._logger.error(
                     "Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!"
                 )
+                self.event_manager.remove_listener(EventType.Timeout, on_timeout)
 
         self._connection_retries = 1
 
-        self.event_manager.add_listener(EventType.Timeout, on_timeout)
         self._attempt_connect(timeout)
+
+        self.event_manager.add_listener(EventType.Timeout, on_timeout)
 
     def _attempt_connect(self, timeout=15):
         """Connect to the MindWaveMobile2 device and start a read loop to process and stream incoming data."""
 
         self._logger.info("Connecting to MindWaveMobile2 device...")
         self.connector.connect()
+        self.event_manager.add_listener(EventType.ConnectorData, self._update_status)
         thread = threading.Thread(target=self._read_loop, args=(timeout,), daemon=True)
         thread.start()
-        self.event_manager.add_listener(EventType.ConnectorData, self._update_status)
 
     def disconnect(self):
-        if self.connection_status == ConnectionStatus.DISCONNECTED:
+        if (
+            self.connection_status == ConnectionStatus.DISCONNECTED
+            and not self.connector.is_connected()
+        ):
             self._logger.warning("MindWaveMobile2 device is already disconnected!")
             return
         self._logger.info("Disconnecting MindWaveMobile2 device...")
