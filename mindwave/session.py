@@ -69,10 +69,10 @@ class Session:
 
     def _collator(self, data: Data):
         self._logger.debug(f"Data received: {data}")
-        curr_time = datetime.now().strftime("%H:%M:%S:%f")
+        curr_time = datetime.now().strftime("%H:%M:%S")
         record = {
             "time": curr_time,
-            "event": "headset_data",  # "headset_data" or "blink_detected"
+            "event": "headset_data",  # "headset_data" or "blink_data"
             "attention": data.attention,
             "meditation": data.meditation,
             "delta": data.delta,
@@ -91,10 +91,10 @@ class Session:
 
     def _blinks_collator(self, blink_strength: int):
         self._logger.debug(f"Blink detected: {blink_strength}")
-        curr_time = datetime.now().strftime("%H:%M:%S:%f")
+        curr_time = datetime.now().strftime("%H:%M:%S")
         record = {
             "time": curr_time,
-            "event": "blink_detected",
+            "event": "blink_data",  # "headset_data" or "blink_data"
             "attention": None,
             "meditation": None,
             "delta": None,
