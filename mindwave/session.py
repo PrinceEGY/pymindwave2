@@ -109,6 +109,8 @@ class Session:
             "blink_strength": blink_strength,
         }
 
+        self._data.append(record)
+
     def __repr__(self) -> str:
         start_time = (
             self.start_time.strftime("%H:%M:%S")
