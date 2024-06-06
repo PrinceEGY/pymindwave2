@@ -97,10 +97,6 @@ class MindWaveMobile2:
         """Remove a listener from the parsed data events. The listener will no longer be called when the parsed data event is triggered."""
         self._stream_parser.remove_listener(event_type, listener)
 
-    def record(self) -> Session:
-        """Start a new session and return the session object."""
-        return Session(headset=self)
-
     def _read_loop(self, timeout):
         t1 = time.perf_counter()
         while self.connector.is_connected():
