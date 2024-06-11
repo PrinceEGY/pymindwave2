@@ -14,7 +14,6 @@ class EventManager:
     def __init__(self):
         self.__listeners = defaultdict(list)
 
-    def add_listener(self, event_type: EventType, listener: Callable):
     def add_listener(self, event_type: EventType, listener: Callable) -> None:
         assert listener not in self.__listeners[event_type], "Listener already exists"
         self.__listeners[event_type].append(listener)
