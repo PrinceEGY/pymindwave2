@@ -221,12 +221,50 @@ class SessionManager:
             self.headset.connection_status == ConnectionStatus.CONNECTED
         ), "Headset not connected"
 
+        # Create user directory
         self._create_user_dir()
+        self._save_info()
+
         self.session.start()
         thread = threading.Thread(target=self._session_loop)
         thread.start()
 
         self.add_listener(SessionEvent, self._session_handler)
+
+    def _create_user_dir(self):
+        # create user dir with incremental number if already exists
+        base_dir = Path(self.config.save_dir)
+        i = 1
+        user_dir = base_dir / f"{self.config.user_name}_{str(i).zfill(2)}"
+
+        while user_dir.exists():
+            i += 1
+            user_dir = base_dir / f"{self.config.user_name}_{str(i).zfill(2)}"
+
+        user_dir.mkdir(parents=True, exist_ok=True)
+
+        self._save_dir = str(user_dir)
+
+    def _save_info(self):
+        file_name = f"{self._save_dir}/session.info"
+        with open(file_name, mode="w") as file:
+            file.write("=" * 20 + "\n\n")
+            file.write(f"User info:\n")
+            file.write(f"user_name: {self.config.user_name}\n")
+            file.write(f"user_age: {self.config.user_age}\n")
+            file.write(f"user_gender: {self.config.user_gender}\n")
+            file.write("\n" + "=" * 20 + "\n\n")
+            file.write(f"Session info:\n")
+            file.write(f"classes: {self.config.classes}\n")
+            file.write(f"trials: {self.config.trials}\n")
+            file.write(f"baseline_duration: {self.config.baseline_duration}\n")
+            file.write(f"rest_duration: {self.config.rest_duration}\n")
+            file.write(f"ready_duration: {self.config.ready_duration}\n")
+            file.write(f"cue_duration: {self.config.cue_duration}\n")
+            file.write(f"motor_duration: {self.config.motor_duration}\n")
+            file.write(f"extra_duration: {self.config.extra_duration}\n")
+            file.write(f"save_dir: {self.config.save_dir}\n")
+            file.write(f"capture_blinks: {self.config.capture_blinks}\n")
 
     def add_listener(self, event_type: SessionEvent, listener):
         self._event_manager.add_listener(event_type, listener)
