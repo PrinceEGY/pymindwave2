@@ -30,7 +30,13 @@ class MindWaveConnector:
         assert (
             not self.is_connected()
         ), "The device is already connected, to reconnect with different settings, please disconnect first using the disconnect() method."
-        self.tn.open(self.host, self.port)
+        try:
+            self.tn.open(self.host, self.port)
+        except ConnectionRefusedError:
+            self._logger.error(
+                f"Connection to ThinkGear Connector at {self.host}:{self.port} refused!, Check if the ThinkGear Connector is running."
+            )
+            return False
         self.tn.write(
             json.dumps(
                 {
