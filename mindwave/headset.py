@@ -18,8 +18,11 @@ class MindWaveMobile2:
         self.signal_quality = 200  # 0-200 (0 indicating a good signal and 200 indicating an off-head state)
         self.event_manager = EventManager()  # Emit ConnectorData events
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
-        self._connection_retries = 1
         self._stream_parser = StreamParser()
+
+        self.event_manager.add_listener(EventType.ConnectorData, self._update_status)
+        self._read_thread = threading.Thread(target=self._read_loop, daemon=True)
+        self._read_thread.start()
 
     @property
     def connection_status(self):
@@ -53,34 +56,38 @@ class MindWaveMobile2:
     def connect(self, timeout=15, n_tries=3):
         """Attempt to connect to the MindWaveMobile2 device with a specified number of retries in case of a timeout."""
 
-        def on_timeout():
-            if self._connection_retries < n_tries:
-                self._connection_retries += 1
-                self._logger.warning(
-                    f"Connection timed out. Retrying Attempt {self._connection_retries} ..."
-                )
-                time.sleep(3)
-                self._attempt_connect(timeout)
-            elif self._connection_retries == n_tries:
-                self._logger.error(
-                    "Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!"
-                )
-                self.event_manager.remove_listener(EventType.Timeout, on_timeout)
+        if self._attempt_connect(timeout):
+            return
 
-        self._connection_retries = 1
-
-        self._attempt_connect(timeout)
-
-        self.event_manager.add_listener(EventType.Timeout, on_timeout)
+        for i in range(n_tries - 1):
+            self._logger.warning(f"Connection timed out. Retrying Attempt {i+2} ...")
+            time.sleep(3)
+            if self._attempt_connect(timeout):
+                return
+        self._logger.error(
+            "Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!"
+        )
 
     def _attempt_connect(self, timeout=15):
         """Connect to the MindWaveMobile2 device and start a read loop to process and stream incoming data."""
 
+        def check_connection_status():
+            while self.connection_status != ConnectionStatus.CONNECTED:
+                pass
+
+            return True
+
         self._logger.info("Connecting to MindWaveMobile2 device...")
         self.connector.connect()
-        self.event_manager.add_listener(EventType.ConnectorData, self._update_status)
-        thread = threading.Thread(target=self._read_loop, args=(timeout,), daemon=True)
+
+        thread = threading.Thread(target=check_connection_status)
         thread.start()
+        thread.join(timeout)
+        if thread.is_alive():  # Timeout occurred
+            self.disconnect()
+            return False
+
+        return True
 
     def disconnect(self):
         if (
@@ -89,9 +96,9 @@ class MindWaveMobile2:
         ):
             self._logger.warning("MindWaveMobile2 device is already disconnected!")
             return
+
         self._logger.info("Disconnecting MindWaveMobile2 device...")
         self.connection_status = ConnectionStatus.DISCONNECTED
-        self.event_manager.remove_listener(EventType.ConnectorData, self._update_status)
         self.connector.disconnect()
 
     def add_listener(self, event_type, listener):
@@ -102,34 +109,29 @@ class MindWaveMobile2:
         """Remove a listener from the parsed data events. The listener will no longer be called when the parsed data event is triggered."""
         self._stream_parser.remove_listener(event_type, listener)
 
-    def _read_loop(self, timeout):
-        t1 = time.perf_counter()
-        while self.connector.is_connected():
-            try:
-                out = self.connector.read()
-                data = json.loads(out)
-                self.event_manager(EventType.ConnectorData, data)
-            except json.JSONDecodeError:
-                self._logger.error("Error parsing JSON")
-            except UnicodeDecodeError as e:
-                self._logger.error(f"UnicodeDecodeError: {e}, data: {out}")
-            except Exception as e:
-                # FIXME: this is raised when the connection is closed normally
-                # this is because of this method runs in a separate thread
-                # which causes the disconnect method to be called twice
-                # there will be no issues anyway since the connection is already closed
-                # but this should be handled properly for better code quality
-                self._logger.error(f"An error occurred: {e}")
-                self.disconnect()
-                break
-
-            if self.connection_status == ConnectionStatus.CONNECTED:
-                t1 = time.perf_counter()
+    def _read_loop(self):
+        while True:
+            if self.connector.is_connected():
+                try:
+                    out = self.connector.read()
+                    data = json.loads(out)
+                    self.event_manager(EventType.ConnectorData, data)
+                except json.JSONDecodeError:
+                    self._logger.error("Error parsing JSON")
+                except UnicodeDecodeError as e:
+                    self._logger.error(f"UnicodeDecodeError: {e}, data: {out}")
+                except AttributeError as e:
+                    self._logger.error(f"AttributeError: {e}")
+                except Exception as e:
+                    # FIXME: this is raised when the connection is closed normally
+                    # this is because of this method runs in a separate thread
+                    # which causes the disconnect method to be called twice
+                    # there will be no issues anyway since the connection is already closed
+                    # but this should be handled properly for better code quality
+                    self._logger.error(f"An error occurred: {e}")
+                    self.disconnect()
             else:
-                t2 = time.perf_counter()
-                if t2 - t1 > timeout:
-                    self._timeout_disconnect()
-                    break
+                time.sleep(0.1)
 
     def _update_status(self, data):
         # Set the connection status and signal quality based on the connector data
