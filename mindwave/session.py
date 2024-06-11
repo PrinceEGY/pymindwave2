@@ -35,13 +35,9 @@ class Session:
     def start(self) -> None:
         assert not self.is_active, "Session is already active!"
         assert not self._is_finished, "Session is finished!"
-        self.headset.add_listener(
-            event_type=EventType.HeadsetData, listener=self._collator
-        )
+        self.headset.on_data(self._collator)
         if self.capture_blinks:
-            self.headset.add_listener(
-                event_type=EventType.Blink, listener=self._blinks_collator
-            )
+            self.headset.on_blink(self._blinks_collator)
 
         self.start_time = datetime.now()
         self.is_active = True
@@ -52,13 +48,6 @@ class Session:
     def stop(self) -> None:
         assert self.is_active, "Session is not active"
         self.end_time = datetime.now()
-        self.headset.remove_listener(
-            event_type=EventType.HeadsetData, listener=self._collator
-        )
-        if self.capture_blinks:
-            self.headset.remove_listener(
-                event_type=EventType.Blink, listener=self._blinks_collator
-            )
 
         self.is_active = False
         self._is_finished = True

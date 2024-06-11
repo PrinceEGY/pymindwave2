@@ -30,6 +30,7 @@ class MindWaveMobile2:
 
     @connection_status.setter
     def connection_status(self, value: ConnectionStatus):
+        self.event_manager(EventType.HeadsetStatus, value)
         if (
             value == ConnectionStatus.CONNECTED
             and self._connection_status != ConnectionStatus.CONNECTED
@@ -109,13 +110,17 @@ class MindWaveMobile2:
         self.connection_status = ConnectionStatus.DISCONNECTED
         self.connector.disconnect()
 
-    def add_listener(self, event_type, listener):
-        """Add a listener to the parsed data events. The listener will be called when the parsed data event is triggered."""
-        self._stream_parser.add_listener(event_type, listener)
+    def on_data(self, callback):
+        """Add a callback function to the parsed data events. The callback will be called when the parsed data event is triggered."""
+        self._stream_parser.add_listener(EventType.HeadsetData, callback)
 
-    def remove_listener(self, event_type, listener):
-        """Remove a listener from the parsed data events. The listener will no longer be called when the parsed data event is triggered."""
-        self._stream_parser.remove_listener(event_type, listener)
+    def on_blink(self, callback):
+        """Add a callback function to the blink events. The callback will be called when the blink event is triggered."""
+        self._stream_parser.add_listener(EventType.Blink, callback)
+
+    def on_status(self, callback):
+        """Add a callback function to the connection status events. The callback will be called when the connection status event is triggered."""
+        self.event_manager.add_listener(EventType.HeadsetStatus, callback)
 
     def _read_loop(self):
         while True:
