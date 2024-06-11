@@ -1,7 +1,13 @@
+from enum import Enum
+from pathlib import Path
+import random
+import threading
+import time
 from mindwave.headset import MindWaveMobile2
 from datetime import datetime
 from mindwave.data import Data
-from util.event_handler import EventType
+from util.connection_state import ConnectionStatus
+from util.event_manager import EventManager, EventType
 from util.logger import Logger
 import csv
 
@@ -129,5 +135,172 @@ class Session:
 
     def __len__(self) -> int:
         return len(self._data)
+
+
+class SessionConfig:
+    def __init__(
+        self,
+        user_name: str = None,
+        user_age: int = None,
+        user_gender: str = None,
+        classes: list = [],
+        trials: int = 1,
+        baseline_duration: float = 15,
+        rest_duration: float = 2,
+        ready_duration: float = 1,
+        cue_duration: float = 1.5,
+        motor_duration: float = 4,
+        extra_duration: float = 0,  # Random duration to be added to the motor duration in range [0, extra_duration]
+        save_dir: str = "./sessions/",
+        capture_blinks: bool = False,
+    ):
+        self.user_name = user_name
+        self.user_age = user_age
+        self.user_gender = user_gender
+        self.classes = classes
+        self.trials = trials
+        self.baseline_duration = baseline_duration
+        self.rest_duration = rest_duration
+        self.ready_duration = ready_duration
+        self.cue_duration = cue_duration
+        self.motor_duration = motor_duration
+        self.extra_duration = extra_duration
+        self.save_dir = save_dir
+        self.capture_blinks = capture_blinks
+
+    def __repr__(self):
+        return (
+            f"SessionConfig(user_name={self.user_name}, "
+            f"user_age={self.user_age}, "
+            f"user_gener={self.user_gender}, "
+            f"classes={self.classes}, "
+            f"trials={self.trials}, "
+            f"baseline_duration={self.baseline_duration}, "
+            f"rest_duration={self.rest_duration}, "
+            f"ready_duration={self.ready_duration}, "
+            f"cue_duration={self.cue_duration}, "
+            f"motor_duration={self.motor_duration}, "
+            f"extra_duration={self.extra_duration}, "
+            f"save_dir='{self.save_dir}', "
+            f"capture_blinks={self.capture_blinks})"
+        )
+
+
+class SessionEvent(Enum):
+    SESSION_START = 1
+    SESSION_END = 2
+    BASELINE_START = 3
+    BASELINE_END = 4
+    TRIAL_START = 5
+    TRIAL_END = 6
+    REST = 7
+    READY = 8
+    CUE = 9
+    MOTOR = 10
+
+
+class SessionManager:
+    def __init__(self, headset: MindWaveMobile2, config: SessionConfig):
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.headset = headset
+        self.config = config
+        self._event_manager = EventManager()
+        self._events = []
+
+        self.session = Session(
+            headset=headset,
+            capture_blinks=config.capture_blinks,
+            lazy_start=True,
+        )
+
+        random.seed(time.perf_counter())
+
+    def start(self) -> None:
+        assert (
+            self.headset.connection_status == ConnectionStatus.CONNECTED
+        ), "Headset not connected"
+
+        self.session.start()
+        thread = threading.Thread(target=self._session_loop)
+        thread.start()
+
+        self.add_listener(SessionEvent, self._session_handler)
+
+    def add_listener(self, event_type: SessionEvent, listener):
+        self._event_manager.add_listener(event_type, listener)
+
+    def remove_listener(self, event_type: SessionEvent, listener):
+        self._event_manager.remove_listener(event_type, listener)
+
+    def _session_handler(self, *args):
+        event: SessionEvent = args[0]
+        self._logger.info(
+            f"Session event: {event.name}, class: {args[1] if len(args) > 1 else None}"
+        )
+        curr_time = datetime.now().strftime("%H:%M:%S")
+        record = {
+            "time": curr_time,
+            "event": event.name,
+            "class": args[1] if len(args) > 1 else None,
+        }
+
+        self._events.append(record)
+        if event == SessionEvent.SESSION_END:
+            self.session.stop()
+            self.remove_listener(SessionEvent, self._session_handler)
+
+            self._save_events()
+            self.session.save(f"{self.config.save_dir}/data.csv")
+
+    def _session_loop(self) -> None:
+        classes_events = self._setup_classes_events()
+
+        time.sleep(1)
+        self._event_manager(SessionEvent, SessionEvent.SESSION_START)
+        time.sleep(5)
+
+        self._event_manager(SessionEvent, SessionEvent.BASELINE_START)
+        time.sleep(self.config.baseline_duration)
+
+        self._event_manager(SessionEvent, SessionEvent.BASELINE_END)
+
+        for class_event in classes_events:
+            self._event_manager(SessionEvent, SessionEvent.TRIAL_START, class_event)
+
+            self._event_manager(SessionEvent, SessionEvent.REST)
+            time.sleep(self.config.rest_duration)
+
+            self._event_manager(SessionEvent, SessionEvent.READY)
+            time.sleep(self.config.ready_duration)
+
+            self._event_manager(SessionEvent, SessionEvent.CUE)
+            time.sleep(self.config.cue_duration)
+
+            self._event_manager(SessionEvent, SessionEvent.MOTOR)
+            time.sleep(self.config.motor_duration)
+            time.sleep(random.uniform(0, self.config.extra_duration))
+
+            self._event_manager(SessionEvent, SessionEvent.TRIAL_END, class_event)
+
+        self._event_manager(SessionEvent, SessionEvent.SESSION_END)
+
+    def _setup_classes_events(self) -> list:
+        classes_events = []
+
+        for class_name in self.config.classes:
+            classes_events += [class_name] * self.config.trials
+        random.shuffle(classes_events)
+
+        return classes_events
+
+    def _save_events(self):
+        assert len(self._events) > 0, "No events to save"
+
+        Path(self.config.save_dir).mkdir(parents=True, exist_ok=True)
+        file_name = f"{self.config.save_dir}/events.csv"
+
+        with open(file_name, mode="w", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=self._events[0].keys())
+            writer.writeheader()
+            writer.writerows(self._events)
+        self._logger.info(f"Session events saved to {file_name}")
