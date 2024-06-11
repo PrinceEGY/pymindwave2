@@ -206,6 +206,7 @@ class SessionManager:
         self.config = config
         self._event_manager = EventManager()
         self._events = []
+        self._save_dir = None
 
         self.session = Session(
             headset=headset,
@@ -220,6 +221,7 @@ class SessionManager:
             self.headset.connection_status == ConnectionStatus.CONNECTED
         ), "Headset not connected"
 
+        self._create_user_dir()
         self.session.start()
         thread = threading.Thread(target=self._session_loop)
         thread.start()
@@ -250,7 +252,7 @@ class SessionManager:
             self.remove_listener(SessionEvent, self._session_handler)
 
             self._save_events()
-            self.session.save(f"{self.config.save_dir}/data.csv")
+            self.session.save(f"{self._save_dir}/data.csv")
 
     def _session_loop(self) -> None:
         classes_events = self._setup_classes_events()
@@ -297,7 +299,7 @@ class SessionManager:
         assert len(self._events) > 0, "No events to save"
 
         Path(self.config.save_dir).mkdir(parents=True, exist_ok=True)
-        file_name = f"{self.config.save_dir}/events.csv"
+        file_name = f"{self._save_dir}/events.csv"
 
         with open(file_name, mode="w", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=self._events[0].keys())
