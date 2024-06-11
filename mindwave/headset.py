@@ -135,12 +135,12 @@ class MindWaveMobile2:
                     self._logger.error(f"UnicodeDecodeError: {e}, data: {out}")
                 except AttributeError as e:
                     self._logger.error(f"AttributeError: {e}")
-                except Exception as e:
                     # FIXME: this is raised when the connection is closed normally
-                    # this is because of this method runs in a separate thread
-                    # which causes the disconnect method to be called twice
-                    # there will be no issues anyway since the connection is already closed
-                    # but this should be handled properly for better code quality
+                    # The method runs in a separate thread, causing the disconnect method to be called twice.
+                    # As a result, a 'recv' method is called on a closed socket, leading to a None object.
+                    # Although this doesn't cause any functional issues since the connection is already closed,
+                    # it should be handled properly for better code quality.
+                except Exception as e:
                     self._logger.error(f"An error occurred: {e}")
                     self.disconnect()
             else:
