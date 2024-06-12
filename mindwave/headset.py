@@ -93,7 +93,7 @@ class MindWaveMobile2:
         thread.start()
         thread.join(timeout)
         if thread.is_alive():  # Timeout occurred
-            self.disconnect()
+            self._timeout_disconnect()
             return False
 
         return is_connected
