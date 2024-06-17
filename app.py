@@ -15,6 +15,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
+        self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.ui.setupUi(self)
         self.headset = MindWaveMobile2()
 
