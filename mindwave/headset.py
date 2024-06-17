@@ -13,14 +13,14 @@ class MindWaveMobile2:
         self,
         **connector_args,
     ):
-        self._connection_status = ConnectionStatus.DISCONNECTED
+        self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.connector = MindWaveConnector(**connector_args)
         self.event_manager = EventManager()  # Emit ConnectorData events
-        self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._signal_quality = 0
+        self._connection_status = ConnectionStatus.DISCONNECTED
         self._stream_parser = StreamParser()
 
-        self.event_manager.add_listener(EventType.ConnectorData, self._update_status)
+        self.on_connector_data(self._update_status)
         self._read_thread = threading.Thread(target=self._read_loop, daemon=True)
         self._read_thread.start()
 
@@ -135,7 +135,7 @@ class MindWaveMobile2:
         """Add a callback function to the blink events. The callback will be called when the blink event is triggered."""
         self._stream_parser.add_listener(EventType.Blink, callback)
 
-    def on_status(self, callback):
+    def on_status_change(self, callback):
         """Add a callback function to the connection status events. The callback will be called when the connection status event is triggered."""
         self.event_manager.add_listener(EventType.HeadsetStatus, callback)
 
