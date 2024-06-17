@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.headset = MindWaveMobile2()
 
-        self.headset.on_status(self.update_headset_status)
+        self.headset.on_status_change(self.update_headset_status)
         self.headset.on_signal_quality_change(self.update_signal_quality)
 
         self.ui.label_headset_status.setText(self.headset.connection_status.name)
