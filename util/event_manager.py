@@ -9,6 +9,7 @@ class EventType(Enum):
     HeadsetData = 3  # Parsed data from the headset contains all streamed attribtues (see Data class)
     Blink = 4
     HeadsetStatus = 5
+    SignalQuality = 6
 
 
 class EventManager:

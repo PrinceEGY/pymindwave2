@@ -15,14 +15,31 @@ class MindWaveMobile2:
     ):
         self._connection_status = ConnectionStatus.DISCONNECTED
         self.connector = MindWaveConnector(**connector_args)
-        self.signal_quality = 200  # 0-200 (0 indicating a good signal and 200 indicating an off-head state)
         self.event_manager = EventManager()  # Emit ConnectorData events
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self._signal_quality = 0
         self._stream_parser = StreamParser()
 
         self.event_manager.add_listener(EventType.ConnectorData, self._update_status)
         self._read_thread = threading.Thread(target=self._read_loop, daemon=True)
         self._read_thread.start()
+
+    @property
+    def signal_quality(self):
+        # Normalized signal quality in the range of 0-100%
+        # the raw signal quality value in the range 0-200 (0 indicating a good signal and 200 indicating an off-head state)
+        # to access the raw signal quality value use the data from the connector (on_connector_data events)
+        return self._signal_quality
+
+    @signal_quality.setter
+    def signal_quality(self, value: int):
+        value = abs(value - 200)  # Invert the signal quality value
+        value = value / 2  # Normalize the signal quality value to 0-100%
+        if value != self._signal_quality:
+            self.event_manager(EventType.SignalQuality, self._signal_quality)
+            self._logger.debug(f"Signal Quality value Changed: {value}%")
+
+        self._signal_quality = float(value)
 
     @property
     def connection_status(self):
@@ -121,6 +138,14 @@ class MindWaveMobile2:
     def on_status(self, callback):
         """Add a callback function to the connection status events. The callback will be called when the connection status event is triggered."""
         self.event_manager.add_listener(EventType.HeadsetStatus, callback)
+
+    def on_signal_quality_change(self, callback):
+        """Add a callback function to the signal quality change events. The callback will be called when the signal quality change event is triggered."""
+        self.event_manager.add_listener(EventType.SignalQuality, callback)
+
+    def on_connector_data(self, callback):
+        """Add a callback function to the connector data events. The callback will be called when the connector data event is triggered."""
+        self.event_manager.add_listener(EventType.ConnectorData, callback)
 
     def _read_loop(self):
         while True:
