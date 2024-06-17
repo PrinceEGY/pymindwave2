@@ -19,6 +19,7 @@ class MainWindow(QMainWindow):
         self.headset = MindWaveMobile2()
 
         self.headset.on_status(self.update_headset_status)
+        self.headset.on_signal_quality_change(self.update_signal_quality)
 
         self.ui.label_headset_status.setText(self.headset.connection_status.name)
 
@@ -48,6 +49,9 @@ class MainWindow(QMainWindow):
         else:
             self.ui.pushButton_headset_connect.setEnabled(False)
             self.ui.pushButton_headset_connect.setText("Connecting...")
+
+    def update_signal_quality(self, signal_quality):
+        self.ui.label_signalquality_percent.setText(f"{signal_quality}%")
 
 
 if __name__ == "__main__":
