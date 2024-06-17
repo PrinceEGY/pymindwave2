@@ -89,31 +89,37 @@ class MindWaveMobile2:
     def _attempt_connect(self, timeout=15):
         """Connect to the MindWaveMobile2 device and start a read loop to process and stream incoming data."""
 
-        is_connected = False
-
-        def check_connection_status():
-            global is_connected
-            while self.connection_status != ConnectionStatus.CONNECTED:
+        def check_connection_status(
+            stop_event: threading.Event, connected_event: threading.Event
+        ):
+            while (
+                self.connection_status != ConnectionStatus.CONNECTED
+                and not stop_event.is_set()
+            ):
                 if not self.connector.is_connected():
-                    is_connected = False
+                    connected_event.clear()
                     self._logger.debug(
                         "Connector Connection lost while trying to connect!"
                     )
-                    break
-
-            is_connected = True
+                    return
+            connected_event.set()
 
         self._logger.info("Connecting to MindWaveMobile2 device...")
         self.connector.connect()
 
-        thread = threading.Thread(target=check_connection_status)
+        stop_event = threading.Event()
+        connected_event = threading.Event()
+        thread = threading.Thread(
+            target=check_connection_status, args=(stop_event, connected_event)
+        )
         thread.start()
         thread.join(timeout)
-        if thread.is_alive():  # Timeout occurred
-            self._timeout_disconnect()
-            return False
 
-        return is_connected
+        if thread.is_alive() and not connected_event.is_set():  # Timeout occurred
+            self._timeout_disconnect()
+
+        stop_event.set()
+        return connected_event.is_set()
 
     def disconnect(self):
         if (
