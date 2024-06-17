@@ -36,7 +36,7 @@ class MindWaveMobile2:
         value = abs(value - 200)  # Invert the signal quality value
         value = value / 2  # Normalize the signal quality value to 0-100%
         if value != self._signal_quality:
-            self.event_manager(EventType.SignalQuality, self._signal_quality)
+            self.event_manager(EventType.SignalQuality, value)
             self._logger.debug(f"Signal Quality value Changed: {value}%")
 
         self._signal_quality = float(value)
