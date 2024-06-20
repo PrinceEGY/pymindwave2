@@ -218,7 +218,7 @@ class SessionManager:
         thread = threading.Thread(target=self._session_loop)
         thread.start()
 
-        self.add_listener(SessionEvent, self._session_handler)
+        self.add_listener(self._session_handler)
 
     def _create_user_dir(self):
         # create user dir with incremental number if already exists
@@ -255,11 +255,11 @@ class SessionManager:
             file.write(f"save_dir: {self.config.save_dir}\n")
             file.write(f"capture_blinks: {self.config.capture_blinks}\n")
 
-    def add_listener(self, event_type: SessionEvent, listener):
-        self._event_manager.add_listener(event_type, listener)
+    def add_listener(self, listener):
+        self._event_manager.add_listener(SessionEvent, listener)
 
-    def remove_listener(self, event_type: SessionEvent, listener):
-        self._event_manager.remove_listener(event_type, listener)
+    def remove_listener(self, listener):
+        self._event_manager.remove_listener(SessionEvent, listener)
 
     def _session_handler(self, *args):
         event: SessionEvent = args[0]
@@ -276,7 +276,7 @@ class SessionManager:
         self._events.append(record)
         if event == SessionEvent.SESSION_END:
             self.session.stop()
-            self.remove_listener(SessionEvent, self._session_handler)
+            self.remove_listener(self._session_handler)
 
             self._save_events()
             self.session.save(f"{self._save_dir}/data.csv")
