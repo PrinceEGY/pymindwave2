@@ -1,18 +1,6 @@
-# -*- coding: utf-8 -*-
-
-################################################################################
-## Form generated from reading UI file 'acqeqFtgY.ui'
-##
-## Created by: Qt User Interface Compiler version 6.7.1
-##
-## WARNING! All changes made in this file will be lost when recompiling UI file!
-################################################################################
-
-from PySide6.QtCore import (
-    QCoreApplication,
-    QMetaObject,
-    Qt,
-)
+import threading
+import time
+from PySide6.QtCore import QCoreApplication, QMetaObject, Qt, QTimer
 from PySide6.QtGui import (
     QFont,
 )
@@ -24,6 +12,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QWidget,
 )
+
+from mindwave.session import SessionConfig, SessionEvent, SessionManager
 
 
 class Ui_AcquisitionWindow(object):
@@ -63,7 +53,7 @@ class Ui_AcquisitionWindow(object):
         sizePolicy1.setHeightForWidth(self.frame.sizePolicy().hasHeightForWidth())
         self.frame.setSizePolicy(sizePolicy1)
         self.frame.setStyleSheet(
-            "QFrame{\n" "	background-color: rgb(255, 255, 0);\n" "}"
+            "QFrame{background-color: rgba(255, 255, 0, 0); border: 0px black solid;}"
         )
         self.frame.setFrameShape(QFrame.Shape.StyledPanel)
         self.frame.setFrameShadow(QFrame.Shadow.Raised)
@@ -121,8 +111,50 @@ class Ui_AcquisitionWindow(object):
 
 
 class AcquisitionWindow(QMainWindow):
-    def __init__(self, headset):
+    _CSS_TRANSPARENT = (
+        "QFrame{background-color: rgba(255, 255, 0, 0); border: 0px black solid;}"
+    )
+    _CSS_READY = "QFrame{background-color: rgb(255, 255, 0);}"
+    _CSS_MOTOR = "QFrame{background-color: rgb(0, 255, 0);}"
+
+    def __init__(self, headset, sess_config: SessionConfig):
         super(AcquisitionWindow, self).__init__()
         self.ui = Ui_AcquisitionWindow()
         self.ui.setupUi(self)
         self.headset = headset
+        self.sess_config = sess_config
+        self.sess_manager = SessionManager(headset=headset, config=sess_config)
+        self.sess_manager.add_listener(self._events_handler)
+
+        self.ui.frame.setStyleSheet(self._CSS_TRANSPARENT)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timer_handler)
+        self._rem = 5
+        self.timer.start(1000)
+        self._curr_class = ""
+
+    def timer_handler(self):
+        if self._rem > 0:
+            self.ui.label_class.setText(str(self._rem))
+            self._rem -= 1
+        else:
+            self.timer.stop()
+            self.sess_manager.start()
+
+    def _events_handler(self, *args):
+        event: SessionEvent = args[0]
+        self._curr_class = args[1] if len(args) > 1 else ""
+
+        def clear_screen():
+            self.ui.label_class.hide()
+            self.ui.frame.setStyleSheet(self._CSS_TRANSPARENT)
+
+        clear_screen()
+        print("Acq", event.name)
+        if event == SessionEvent.READY:
+            self.ui.frame.setStyleSheet(self._CSS_READY)
+        elif event == SessionEvent.MOTOR:
+            self.ui.frame.setStyleSheet(self._CSS_MOTOR)
+        elif event == SessionEvent.CUE:
+            self.ui.label_class.show()
+            self.ui.label_class.setText(self._curr_class)
