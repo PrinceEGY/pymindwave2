@@ -522,8 +522,6 @@ class MainWindow(QMainWindow):
             )
             error_dialog.exec()
         # else:
-        self.acq_window = AcquisitionWindow(self.headset)
-        self.acq_window.show()
 
         sess_config = SessionConfig(
             user_name=self.ui.lineEdit_username.text(),
@@ -541,9 +539,11 @@ class MainWindow(QMainWindow):
             capture_blinks=self.ui.checkBox_blinks.isChecked(),
         )
         self._logger.debug("Session Configuration: %s", sess_config)
+        self.acq_window = AcquisitionWindow(self.headset, sess_config=sess_config)
+        self.acq_window.show()
 
     def update_headset_status(self, status):
-        # TODO: change the button status logic to be consisted with the retrying connection logic
+        # TODO: change the button status logic to be consistent with the retrying connection logic
         self.ui.label_headset_status.setText(status.name)
         if status == ConnectionStatus.CONNECTED:
             self.ui.pushButton_headset_connect.setText("Disconnect")
