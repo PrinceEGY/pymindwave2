@@ -286,7 +286,7 @@ class SessionManager:
 
         time.sleep(1)
         self._event_manager(SessionEvent, SessionEvent.SESSION_START)
-        time.sleep(5)
+        time.sleep(1)
 
         self._event_manager(SessionEvent, SessionEvent.BASELINE_START)
         time.sleep(self.config.baseline_duration)
