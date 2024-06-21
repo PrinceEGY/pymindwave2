@@ -394,6 +394,9 @@ class Ui_MainWindow(object):
         self.comboBox_gender.setItemText(
             2, QCoreApplication.translate("MainWindow", "Perfer not to say", None)
         )
+        self.lineEdit_username.setText(
+            QCoreApplication.translate("MainWindow", "Mindwave2", None)
+        )
 
         self.groupBox_3.setTitle(
             QCoreApplication.translate("MainWindow", "Session Config", None)
@@ -521,26 +524,29 @@ class MainWindow(QMainWindow):
                 "Signal quality is low!, Please wear the headset properly and make sure the signal quality is 100% before starting the session"
             )
             error_dialog.exec()
-        # else:
-
-        sess_config = SessionConfig(
-            user_name=self.ui.lineEdit_username.text(),
-            user_age=self.ui.spinBox_Age.value(),
-            user_gender=self.ui.comboBox_gender.currentText(),
-            classes=self.ui.lineEdit_classes.text().split(","),
-            trials=self.ui.spinBox_trials.value(),
-            baseline_duration=float(self.ui.lineEdit_baseline.text()),
-            rest_duration=float(self.ui.lineEdit_rest.text()),
-            ready_duration=float(self.ui.lineEdit_ready.text()),
-            cue_duration=float(self.ui.lineEdit_cue.text()),
-            motor_duration=float(self.ui.lineEdit_motor.text()),
-            extra_duration=float(self.ui.lineEdit_extra.text()),
-            save_dir=self.ui.lineEdit_savedir.text(),
-            capture_blinks=self.ui.checkBox_blinks.isChecked(),
-        )
-        self._logger.debug("Session Configuration: %s", sess_config)
-        self.acq_window = AcquisitionWindow(self.headset, sess_config=sess_config)
-        self.acq_window.show()
+        else:
+            sess_config = SessionConfig(
+                user_name=self.ui.lineEdit_username.text(),
+                user_age=self.ui.spinBox_Age.value(),
+                user_gender=self.ui.comboBox_gender.currentText(),
+                classes=self.ui.lineEdit_classes.text().split(","),
+                trials=self.ui.spinBox_trials.value(),
+                baseline_duration=float(self.ui.lineEdit_baseline.text()),
+                rest_duration=float(self.ui.lineEdit_rest.text()),
+                ready_duration=float(self.ui.lineEdit_ready.text()),
+                cue_duration=float(self.ui.lineEdit_cue.text()),
+                motor_duration=float(self.ui.lineEdit_motor.text()),
+                extra_duration=float(self.ui.lineEdit_extra.text()),
+                save_dir=(
+                    self.ui.lineEdit_savedir.text()
+                    if self.ui.lineEdit_savedir.text()
+                    else "./sessions/"
+                ),
+                capture_blinks=self.ui.checkBox_blinks.isChecked(),
+            )
+            self._logger.debug("Session Configuration: %s", sess_config)
+            self.acq_window = AcquisitionWindow(self.headset, sess_config=sess_config)
+            self.acq_window.show()
 
     def update_headset_status(self, status):
         # TODO: change the button status logic to be consistent with the retrying connection logic
