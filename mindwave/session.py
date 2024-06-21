@@ -219,6 +219,10 @@ class SessionManager:
         thread.start()
 
         self.add_listener(self._session_handler)
+    
+    def stop(self) -> None:
+        #TODO: 
+        pass
 
     def _create_user_dir(self):
         # create user dir with incremental number if already exists
