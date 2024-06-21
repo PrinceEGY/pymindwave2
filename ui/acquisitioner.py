@@ -187,3 +187,8 @@ class AcquisitionWindow(QMainWindow):
                     f"Session Ended!, Session data saved to {self.sess_manager._save_dir}!",
                 ),
             )
+
+    def closeEvent(self, event):
+        print("Closing Acquisition Window")
+        self.sess_manager.stop()
+        event.accept()
