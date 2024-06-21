@@ -5,7 +5,7 @@ from ui.main_window import MainWindow
 from util.logger import Logger
 
 if __name__ == "__main__":
-    Logger(level=logging.DEBUG, filename="mindwave.log", filemode="w")
+    Logger(level=logging.INFO, filename="mindwave.log", filemode="w")
 
     app = QtWidgets.QApplication([])
 
