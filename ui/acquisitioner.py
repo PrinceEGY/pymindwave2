@@ -1,6 +1,6 @@
 import threading
 import time
-from PySide6.QtCore import QCoreApplication, QMetaObject, Qt, QTimer
+from PySide6.QtCore import QCoreApplication, QMetaObject, Qt, QTimer, Q_ARG
 from PySide6.QtGui import (
     QFont,
 )
@@ -128,8 +128,9 @@ class AcquisitionWindow(QMainWindow):
 
         self.ui.frame.setStyleSheet(self._CSS_TRANSPARENT)
         self.timer = QTimer()
-        self.timer.timeout.connect(self.timer_handler)
         self._rem = 5
+        self.timer_handler()
+        self.timer.timeout.connect(self.timer_handler)
         self.timer.start(1000)
         self._curr_class = ""
 
@@ -143,18 +144,46 @@ class AcquisitionWindow(QMainWindow):
 
     def _events_handler(self, *args):
         event: SessionEvent = args[0]
-        self._curr_class = args[1] if len(args) > 1 else ""
+        if len(args) > 1:
+            self._curr_class = args[1]
+
+        def frameSetStyleSheet(frame, css):
+            QMetaObject.invokeMethod(
+                frame,
+                "setStyleSheet",
+                Qt.ConnectionType.AutoConnection,
+                Q_ARG(str, css),
+            )
 
         def clear_screen():
-            self.ui.label_class.hide()
-            self.ui.frame.setStyleSheet(self._CSS_TRANSPARENT)
+            QMetaObject.invokeMethod(
+                self.ui.label_class,
+                "setText",
+                Qt.ConnectionType.AutoConnection,
+                Q_ARG(str, ""),
+            )
+            frameSetStyleSheet(self.ui.frame, self._CSS_TRANSPARENT)
 
         clear_screen()
-        print("Acq", event.name)
+
         if event == SessionEvent.READY:
-            self.ui.frame.setStyleSheet(self._CSS_READY)
+            frameSetStyleSheet(self.ui.frame, self._CSS_READY)
         elif event == SessionEvent.MOTOR:
-            self.ui.frame.setStyleSheet(self._CSS_MOTOR)
+            frameSetStyleSheet(self.ui.frame, self._CSS_MOTOR)
         elif event == SessionEvent.CUE:
-            self.ui.label_class.show()
-            self.ui.label_class.setText(self._curr_class)
+            QMetaObject.invokeMethod(
+                self.ui.label_class,
+                "setText",
+                Qt.ConnectionType.AutoConnection,
+                Q_ARG(str, self._curr_class),
+            )
+        elif event == SessionEvent.SESSION_END:
+            QMetaObject.invokeMethod(
+                self.ui.label_class,
+                "setText",
+                Qt.ConnectionType.AutoConnection,
+                Q_ARG(
+                    str,
+                    f"Session Ended!, Session data saved to {self.sess_manager._save_dir}!",
+                ),
+            )
