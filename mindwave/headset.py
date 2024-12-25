@@ -74,6 +74,10 @@ class MindWaveMobile2(DaemonAsync):
     @daemon_task
     async def start(self, n_tries=3, timeout=15):
         """Start the connection to the MindWaveMobile2 device."""
+        if self.is_running:
+            self._logger.info("MindWaveMobile2 device is already running!")
+            return
+
         self.is_running = True
         self._read_loop_task = asyncio.create_task(self._read_loop())
         connect_task = asyncio.create_task(self._connect(n_tries=n_tries, timeout=timeout))
@@ -104,6 +108,10 @@ class MindWaveMobile2(DaemonAsync):
     @daemon_task
     async def stop(self):
         """Stop the connection to the MindWaveMobile2 device."""
+        if not self.is_running:
+            self._logger.info("MindWaveMobile2 device is already stopped!")
+            return
+
         self._logger.info("Stopping MindWaveMobile2 device...")
         self.is_running = False
         await asyncio.sleep(1)
