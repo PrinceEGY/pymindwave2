@@ -1,5 +1,5 @@
 import json
-from mindwave.connector import MindWaveConnector
+from mindwave.connector import ThinkGearConnector
 from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
 from util.daemon_async import DaemonAsync, daemon_task
@@ -12,20 +12,21 @@ import asyncio
 class MindWaveMobile2(DaemonAsync):
     def __init__(
         self,
-        **connector_args,
+        **tg_connector_args,
     ):
         super().__init__()
+        self.is_running = False
+
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
-        self._connector = MindWaveConnector(**connector_args)
+        self._tg_connector = ThinkGearConnector(**tg_connector_args)
         self._event_manager = EventManager()  # Emit ConnectorData events
         self._signal_quality = 0
         self._connection_status = ConnectionStatus.DISCONNECTED
         self._stream_parser = StreamParser()
         self._lock = asyncio.Lock()
+        self._read_loop_task = None
 
         self.on_connector_data(self._update_status)
-        self._read_loop_task = None
-        self.is_running = False
 
     @property
     def signal_quality(self):
@@ -133,10 +134,12 @@ class MindWaveMobile2(DaemonAsync):
                 await asyncio.sleep(0.5)
 
         self.start_connection_time = time.time()
-        await self._connector.connect()
-        self._logger.info("Connecting to MindWaveMobile2 device...")
+        if await self._tg_connector.connect():
+            self._logger.info("Connecting to MindWaveMobile2 device...")
 
-        return await check_bluetooth_connection()
+            return await check_bluetooth_connection()
+
+        return False
 
     async def _timeout(self):
         await self._disconnect()
@@ -144,19 +147,19 @@ class MindWaveMobile2(DaemonAsync):
 
     async def _disconnect(self):
         async with self._lock:
-            if self.connection_status == ConnectionStatus.DISCONNECTED and not self._connector.is_connected():
-                self._logger.warning("MindWaveMobile2 device is already disconnected!")
+            if self.connection_status == ConnectionStatus.DISCONNECTED and not self._tg_connector.is_connected():
+                self._logger.info("MindWaveMobile2 device is already disconnected!")
                 return
 
             self.connection_status = ConnectionStatus.DISCONNECTED
-            self._connector.disconnect()
+            self._tg_connector.disconnect()
 
     async def _read_loop(self):
         while self.is_running:
             async with self._lock:
-                if self._connector.is_connected():
+                if self._tg_connector.is_connected():
                     try:
-                        out = await self._connector.read()
+                        out = await self._tg_connector.read()
                         data = json.loads(out)
                         self._event_manager(EventType.ConnectorData, data)
                     except json.JSONDecodeError:
