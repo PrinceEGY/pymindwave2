@@ -1,4 +1,4 @@
-from telnetlib import Telnet
+import asyncio
 import json
 
 from util.logger import Logger
@@ -8,36 +8,41 @@ class MindWaveConnector:
     def __init__(
         self, host="localhost", port=13854, enable_raw_output=True, output_format="Json"
     ):
-        self.host = host
-        self.port = port
-        self.enable_raw_output = enable_raw_output
-        self.output_format = output_format
-        self.tn = Telnet()
-        self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self.host: str = host
+        self.port: int = port
+        self.enable_raw_output: bool = enable_raw_output
+        self.output_format: str = output_format
+        self.st_writer: asyncio.StreamWriter = None
+        self.st_reader: asyncio.StreamReader = None
+        self._logger: Logger = Logger._instance.get_logger(self.__class__.__name__)
 
     def write(self, data):
-        self.tn.write(data)
+        self.st_writer.write(data)
 
-    def read(self):
+    async def read(self):
         assert (
             self.is_connected()
         ), "The device is not connected, please connect first using the connect() method."
-        out = self.tn.read_until(b"\r")
+        out = await self.st_reader.readuntil(b"\r")
         return out
 
-    def connect(self):
+    async def connect(self):
         self._logger.info("Initializing connection to ThinkGear Connector...")
         assert (
             not self.is_connected()
         ), "The device is already connected, to reconnect with different settings, please disconnect first using the disconnect() method."
         try:
-            self.tn.open(self.host, self.port)
+            self.st_reader, self.st_writer = await asyncio.open_connection(
+                self.host, self.port
+            )
+            self._logger.info("Connected to ThinkGear Connector")
         except ConnectionRefusedError:
             self._logger.error(
                 f"Connection to ThinkGear Connector at {self.host}:{self.port} refused!, Check if the ThinkGear Connector is running."
             )
             return False
-        self.tn.write(
+
+        self.write(
             json.dumps(
                 {
                     "enableRawOutput": self.enable_raw_output,
@@ -45,14 +50,17 @@ class MindWaveConnector:
                 }
             ).encode("utf-8")
         )
+        return True
 
     def disconnect(self):
         self._logger.info("Disconnecting ThinkGear Connector...")
         assert self.is_connected(), "The device is not connected"
-        self.tn.close()
+        self.st_writer.close()  # Closing the st_writer automatically cleans up the st_reader as well.
 
     def is_connected(self):
-        return self.tn.get_socket() is not None
+        if not self.st_writer:
+            return False
+        return not self.st_writer.is_closing()
 
     def __del__(self):
         if self.is_connected():

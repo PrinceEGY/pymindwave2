@@ -1,18 +1,22 @@
 import json
 import threading
+import traceback
 from mindwave.connector import MindWaveConnector
 from mindwave.stream_parser import StreamParser
 from util.connection_state import ConnectionStatus
+from util.daemon_async import DaemonAsync
 from util.event_manager import EventManager, EventType
 from util.logger import Logger
 import time
+import asyncio
 
 
-class MindWaveMobile2:
+class MindWaveMobile2(DaemonAsync):
     def __init__(
         self,
         **connector_args,
     ):
+        super().__init__()
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.connector = MindWaveConnector(**connector_args)
         self.event_manager = EventManager()  # Emit ConnectorData events
@@ -21,8 +25,8 @@ class MindWaveMobile2:
         self._stream_parser = StreamParser()
 
         self.on_connector_data(self._update_status)
-        self._read_thread = threading.Thread(target=self._read_loop, daemon=True)
-        self._read_thread.start()
+        self._read_loop_task = None
+        self.is_running = False
 
     @property
     def signal_quality(self):
@@ -48,20 +52,14 @@ class MindWaveMobile2:
     @connection_status.setter
     def connection_status(self, value: ConnectionStatus):
         self.event_manager(EventType.HeadsetStatus, value)
-        if (
-            value == ConnectionStatus.CONNECTED
-            and self._connection_status != ConnectionStatus.CONNECTED
-        ):
+        if value == ConnectionStatus.CONNECTED and self._connection_status != ConnectionStatus.CONNECTED:
             # Connection changed to Connected
             self.event_manager.add_listener(
                 event_type=EventType.ConnectorData,
                 listener=self._stream_parser,
             )
             self._logger.info("Connected to MindWaveMobile2 device!")
-        elif (
-            self._connection_status == ConnectionStatus.CONNECTED
-            and value != ConnectionStatus.CONNECTED
-        ):
+        elif self._connection_status == ConnectionStatus.CONNECTED and value != ConnectionStatus.CONNECTED:
             # Connection changed from connected to something else
             self.event_manager.remove_listener(
                 event_type=EventType.ConnectorData,
@@ -71,65 +69,64 @@ class MindWaveMobile2:
 
         self._connection_status = value
 
-    def connect(self, timeout=15, n_tries=3):
+    async def start(self, n_tries=3, timeout=15):
+        """Start the connection to the MindWaveMobile2 device."""
+        self.is_running = True
+        self._read_loop_task = asyncio.create_task(self._read_loop())
+
+        if await self._connect(n_tries=n_tries, timeout=timeout):
+            await self._read_loop_task
+        else:
+            # Connection failure or timeout
+            self.is_running = False
+
+    async def stop(self):
+        """Stop the connection to the MindWaveMobile2 device."""
+        self._logger.info("Stopping MindWaveMobile2 device...")
+        self.is_running = False
+        await asyncio.sleep(1)
+        self._disconnect()
+
+    async def _connect(self, timeout=15, n_tries=3):
         """Attempt to connect to the MindWaveMobile2 device with a specified number of retries in case of a timeout."""
+        # TODO: Implement the retry mechanism
+        for i in range(1, n_tries + 1):
+            self._logger.debug(f"{self._read_loop_task.done()}")
+            if await self._attempt_connect(timeout) == True:
+                return True
+            else:
+                self._logger.warning(f"Connection timed out. Retrying Attempt {i+1} ...")
+                await asyncio.sleep(1)
 
-        if self._attempt_connect(timeout):
-            return
+        self._logger.error("Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!")
+        return False
 
-        for i in range(n_tries - 1):
-            self._logger.warning(f"Connection timed out. Retrying Attempt {i+2} ...")
-            time.sleep(3)
-            if self._attempt_connect(timeout):
-                return
-        self._logger.error(
-            "Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!"
-        )
-
-    def _attempt_connect(self, timeout=15):
+    async def _attempt_connect(self, timeout=15):
         """Connect to the MindWaveMobile2 device and start a read loop to process and stream incoming data."""
 
-        def check_connection_status(
-            stop_event: threading.Event, connected_event: threading.Event
-        ):
-            while (
-                self.connection_status != ConnectionStatus.CONNECTED
-                and not stop_event.is_set()
-            ):
-                if not self.connector.is_connected():
-                    connected_event.clear()
-                    self._logger.debug(
-                        "Connector Connection lost while trying to connect!"
-                    )
-                    return
-            connected_event.set()
+        async def check_bluetooth_connection():
+            while self.is_running:
+                if self.connection_status == ConnectionStatus.CONNECTED:
+                    return True
+                if time.time() - self.start_connection_time > timeout:
+                    self._timeout()
+                    return False
+                await asyncio.sleep(0.5)
 
-        self._logger.info("Connecting to MindWaveMobile2 device...")
-        self.connector.connect()
+        self.start_connection_time = time.time()
+        await self.connector.connect()
 
-        stop_event = threading.Event()
-        connected_event = threading.Event()
-        thread = threading.Thread(
-            target=check_connection_status, args=(stop_event, connected_event)
-        )
-        thread.start()
-        thread.join(timeout)
+        return await check_bluetooth_connection()
 
-        if thread.is_alive() and not connected_event.is_set():  # Timeout occurred
-            self._timeout_disconnect()
+    def _timeout(self):
+        self._disconnect()
+        self.event_manager(EventType.Timeout)
 
-        stop_event.set()
-        return connected_event.is_set()
-
-    def disconnect(self):
-        if (
-            self.connection_status == ConnectionStatus.DISCONNECTED
-            and not self.connector.is_connected()
-        ):
+    def _disconnect(self):
+        if self.connection_status == ConnectionStatus.DISCONNECTED and not self.connector.is_connected():
             self._logger.warning("MindWaveMobile2 device is already disconnected!")
             return
 
-        self._logger.info("Disconnecting MindWaveMobile2 device...")
         self.connection_status = ConnectionStatus.DISCONNECTED
         self.connector.disconnect()
 
@@ -153,11 +150,11 @@ class MindWaveMobile2:
         """Add a callback function to the connector data events. The callback will be called when the connector data event is triggered."""
         self.event_manager.add_listener(EventType.ConnectorData, callback)
 
-    def _read_loop(self):
-        while True:
+    async def _read_loop(self):
+        while self.is_running:
             if self.connector.is_connected():
                 try:
-                    out = self.connector.read()
+                    out = await self.connector.read()
                     data = json.loads(out)
                     self.event_manager(EventType.ConnectorData, data)
                 except json.JSONDecodeError:
@@ -172,12 +169,19 @@ class MindWaveMobile2:
                     # Although this doesn't cause any functional issues since the connection is already closed,
                     # it should be handled properly for better code quality.
                 except Exception as e:
-                    self._logger.error(f"An error occurred: {e}")
-                    self.disconnect()
+                    # FIXME: This needs to be handled here because 'asyncio' does not propagate the exception and instead halts the task.
+                    # The exception is stored within the task object and is only raised when the task is awaited.
+                    # However, in this case, the task is not awaited until the connection is established,
+                    # so the exception cannot be caught externally.
+                    self._logger.error("read loop error: \n" + traceback.format_exc())
+                    # self._disconnect()
+                    print("EXCEPTION: ", e)
+                    raise e
             else:
-                time.sleep(0.1)
+                await asyncio.sleep(0.1)
 
     def _update_status(self, data):
+        # TODO: create an Event queue to seperate the producing and consuming of events
         # Set the connection status and signal quality based on the connector data
         # This is a naive way but there are no other ways to determine the connection status
         # Since the "status" field is not always present in the connector data
@@ -202,8 +206,3 @@ class MindWaveMobile2:
             self._logger.debug(
                 f"Connection Status: {self.connection_status.name}, Signal Quality: {self.signal_quality}, Data: {data}"
             )
-
-    def _timeout_disconnect(self):
-        self._logger.warning("Connection timed out!")
-        self.disconnect()
-        self.event_manager(EventType.Timeout)
