@@ -65,6 +65,8 @@ class MindWaveMobile2(DaemonAsync):
                 listener=self._stream_parser,
             )
             self._logger.info("MindWaveMobile2 device Disconnected!")
+            if self.is_running:
+                self.stop()
 
         self._connection_status = value
 
@@ -132,6 +134,7 @@ class MindWaveMobile2(DaemonAsync):
 
         self.start_connection_time = time.time()
         await self._connector.connect()
+        self._logger.info("Connecting to MindWaveMobile2 device...")
 
         return await check_bluetooth_connection()
 
@@ -147,26 +150,6 @@ class MindWaveMobile2(DaemonAsync):
 
             self.connection_status = ConnectionStatus.DISCONNECTED
             self._connector.disconnect()
-
-    def on_data(self, callback):
-        """Add a callback function to the parsed data events. The callback will be called when the parsed data event is triggered."""
-        self._stream_parser.add_listener(EventType.HeadsetData, callback)
-
-    def on_blink(self, callback):
-        """Add a callback function to the blink events. The callback will be called when the blink event is triggered."""
-        self._stream_parser.add_listener(EventType.Blink, callback)
-
-    def on_status_change(self, callback):
-        """Add a callback function to the connection status events. The callback will be called when the connection status event is triggered."""
-        self._event_manager.add_listener(EventType.HeadsetStatus, callback)
-
-    def on_signal_quality_change(self, callback):
-        """Add a callback function to the signal quality change events. The callback will be called when the signal quality change event is triggered."""
-        self._event_manager.add_listener(EventType.SignalQuality, callback)
-
-    def on_connector_data(self, callback):
-        """Add a callback function to the connector data events. The callback will be called when the connector data event is triggered."""
-        self._event_manager.add_listener(EventType.ConnectorData, callback)
 
     async def _read_loop(self):
         while self.is_running:
@@ -209,3 +192,23 @@ class MindWaveMobile2(DaemonAsync):
             self._logger.debug(
                 f"Connection Status: {self.connection_status.name}, Signal Quality: {self.signal_quality}, Data: {data}"
             )
+
+    def on_data(self, callback):
+        """Add a callback function to the parsed data events. The callback will be called when the parsed data event is triggered."""
+        self._stream_parser.add_listener(EventType.HeadsetData, callback)
+
+    def on_blink(self, callback):
+        """Add a callback function to the blink events. The callback will be called when the blink event is triggered."""
+        self._stream_parser.add_listener(EventType.Blink, callback)
+
+    def on_status_change(self, callback):
+        """Add a callback function to the connection status events. The callback will be called when the connection status event is triggered."""
+        self._event_manager.add_listener(EventType.HeadsetStatus, callback)
+
+    def on_signal_quality_change(self, callback):
+        """Add a callback function to the signal quality change events. The callback will be called when the signal quality change event is triggered."""
+        self._event_manager.add_listener(EventType.SignalQuality, callback)
+
+    def on_connector_data(self, callback):
+        """Add a callback function to the connector data events. The callback will be called when the connector data event is triggered."""
+        self._event_manager.add_listener(EventType.ConnectorData, callback)

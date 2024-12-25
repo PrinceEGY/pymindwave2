@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import traceback
 
 
 class DaemonAsync:
@@ -26,8 +27,18 @@ def daemon_task(func):
     This is used so that the user can call the function as a normal sync function
     """
 
-    def wrapper(self: DaemonAsync, *args, **kwargs):
+    def wrapper(self: DaemonAsync, *args, on_error=None, **kwargs):
         future = self.start_task(func, self, *args, **kwargs)
-        return future.result()  # Calling result will raise any exceptions that were thrown in the task
+
+        def handle_done(future: asyncio.Future) -> None:
+            try:
+                future.result()  # This raises any exceptions that occurred
+            except Exception as e:
+                if on_error:
+                    on_error(e)
+                else:
+                    print(f"Exception in asyncio task '{func.__name__}':\n{traceback.format_exc()}")
+
+        future.add_done_callback(handle_done)
 
     return wrapper
