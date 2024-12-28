@@ -1,6 +1,6 @@
 from mindwave.data import Data
-from util.event_manager import EventManager, EventType
-from util.logger import Logger
+from .event_manager import EventManager, EventType
+from .logger import Logger
 
 
 class StreamParser:
@@ -21,9 +21,7 @@ class StreamParser:
         """
         if "blinkStrength" in data:
             self.event_manager(EventType.Blink, data["blinkStrength"])
-            self._logger.debug(
-                f"Blink Triggered with strength: {data['blinkStrength']}"
-            )
+            self._logger.debug(f"Blink Triggered with strength: {data['blinkStrength']}")
         else:
             data = self._parse_data(data)
             if self._raw_flag:

@@ -1,12 +1,22 @@
+from enum import Enum
 import json
 from mindwave.connector import ThinkGearConnector
-from mindwave.stream_parser import StreamParser
-from util.connection_state import ConnectionStatus
-from util.daemon_async import DaemonAsync, daemon_task
-from util.event_manager import EventManager, EventType
-from util.logger import Logger
+from .utils.stream_parser import StreamParser
+from .utils.daemon_async import DaemonAsync, daemon_task
+from .utils.event_manager import EventManager, EventType
+from .utils.logger import Logger
 import time
 import asyncio
+
+
+class ConnectionStatus(Enum):
+    CONNECTED = 1
+    DISCONNECTED = 2
+    IDLE = 3
+    SCANNING = 4
+    NOTSCANNING = 5
+    UNKOWN = 6
+    CONNECTION_LOST = 7
 
 
 class MindWaveMobile2(DaemonAsync):

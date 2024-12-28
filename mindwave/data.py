@@ -1,4 +1,4 @@
-from util.logger import Logger
+from .utils.logger import Logger
 
 
 class Data:

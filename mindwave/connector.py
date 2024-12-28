@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from util.logger import Logger
+from .utils.logger import Logger
 
 
 class ThinkGearConnector:

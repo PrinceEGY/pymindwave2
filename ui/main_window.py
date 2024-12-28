@@ -3,9 +3,9 @@ from PySide6 import QtWidgets
 from mindwave.session import SessionConfig
 from ui.acquisitioner import AcquisitionWindow
 from ui.error_dialog import ErrorDialog
-from util.connection_state import ConnectionStatus
+from utils.connection_state import ConnectionStatus
 from mindwave.headset import MindWaveMobile2
-from util.logger import Logger
+from utils.logger import Logger
 
 from PySide6.QtCore import (
     QCoreApplication,
@@ -117,9 +117,7 @@ class Ui_MainWindow(object):
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(
-            self.spinBox_trials.sizePolicy().hasHeightForWidth()
-        )
+        sizePolicy.setHeightForWidth(self.spinBox_trials.sizePolicy().hasHeightForWidth())
         self.spinBox_trials.setSizePolicy(sizePolicy)
 
         self.verticalLayout_6.addWidget(self.spinBox_trials)
@@ -161,9 +159,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_15.setObjectName("verticalLayout_15")
         self.checkBox_blinks = QCheckBox(self.groupBox_3)
         self.checkBox_blinks.setObjectName("checkBox_blinks")
-        sizePolicy.setHeightForWidth(
-            self.checkBox_blinks.sizePolicy().hasHeightForWidth()
-        )
+        sizePolicy.setHeightForWidth(self.checkBox_blinks.sizePolicy().hasHeightForWidth())
         self.checkBox_blinks.setSizePolicy(sizePolicy)
 
         self.verticalLayout_15.addWidget(self.checkBox_blinks)
@@ -257,9 +253,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.lineEdit_savedir = QLineEdit(self.groupBox_3)
         self.lineEdit_savedir.setObjectName("lineEdit_savedir")
-        sizePolicy.setHeightForWidth(
-            self.lineEdit_savedir.sizePolicy().hasHeightForWidth()
-        )
+        sizePolicy.setHeightForWidth(self.lineEdit_savedir.sizePolicy().hasHeightForWidth())
         self.lineEdit_savedir.setSizePolicy(sizePolicy)
 
         self.horizontalLayout.addWidget(self.lineEdit_savedir)
@@ -269,9 +263,7 @@ class Ui_MainWindow(object):
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(
-            self.pushButton_savedir.sizePolicy().hasHeightForWidth()
-        )
+        sizePolicy1.setHeightForWidth(self.pushButton_savedir.sizePolicy().hasHeightForWidth())
         self.pushButton_savedir.setSizePolicy(sizePolicy1)
 
         self.horizontalLayout.addWidget(self.pushButton_savedir)
@@ -288,14 +280,10 @@ class Ui_MainWindow(object):
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.label_headset_connection = QLabel(self.groupBox_4)
         self.label_headset_connection.setObjectName("label_headset_connection")
-        sizePolicy2 = QSizePolicy(
-            QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum
-        )
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum)
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(
-            self.label_headset_connection.sizePolicy().hasHeightForWidth()
-        )
+        sizePolicy2.setHeightForWidth(self.label_headset_connection.sizePolicy().hasHeightForWidth())
         self.label_headset_connection.setSizePolicy(sizePolicy2)
 
         self.gridLayout_2.addWidget(self.label_headset_connection, 0, 0, 1, 1)
@@ -325,21 +313,15 @@ class Ui_MainWindow(object):
 
         self.label_signalquality = QLabel(self.frame_2)
         self.label_signalquality.setObjectName("label_signalquality")
-        sizePolicy2 = QSizePolicy(
-            QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
-        )
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(
-            self.label_signalquality.sizePolicy().hasHeightForWidth()
-        )
+        sizePolicy2.setHeightForWidth(self.label_signalquality.sizePolicy().hasHeightForWidth())
         self.label_signalquality.setSizePolicy(sizePolicy2)
 
         self.gridLayout_3.addWidget(self.label_signalquality, 0, 1, 1, 1)
 
-        self.horizontalSpacer = QSpacerItem(
-            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
-        )
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.gridLayout_3.addItem(self.horizontalSpacer, 0, 0, 1, 1)
 
@@ -348,9 +330,7 @@ class Ui_MainWindow(object):
 
         self.gridLayout_3.addWidget(self.label_signalquality_percent, 0, 2, 1, 1)
 
-        self.horizontalSpacer_2 = QSpacerItem(
-            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
-        )
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.gridLayout_3.addItem(self.horizontalSpacer_2, 0, 3, 1, 1)
 
@@ -372,110 +352,42 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(
-            QCoreApplication.translate("MainWindow", "MainWindow", None)
-        )
-        self.groupBox_2.setTitle(
-            QCoreApplication.translate("MainWindow", "User Information", None)
-        )
-        self.label_username.setText(
-            QCoreApplication.translate("MainWindow", "Name", None)
-        )
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", "MainWindow", None))
+        self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", "User Information", None))
+        self.label_username.setText(QCoreApplication.translate("MainWindow", "Name", None))
         self.label_age.setText(QCoreApplication.translate("MainWindow", "Age", None))
-        self.label_gender.setText(
-            QCoreApplication.translate("MainWindow", "Gender", None)
-        )
-        self.comboBox_gender.setItemText(
-            0, QCoreApplication.translate("MainWindow", "Male", None)
-        )
-        self.comboBox_gender.setItemText(
-            1, QCoreApplication.translate("MainWindow", "Female", None)
-        )
-        self.comboBox_gender.setItemText(
-            2, QCoreApplication.translate("MainWindow", "Perfer not to say", None)
-        )
-        self.lineEdit_username.setText(
-            QCoreApplication.translate("MainWindow", "Mindwave2", None)
-        )
+        self.label_gender.setText(QCoreApplication.translate("MainWindow", "Gender", None))
+        self.comboBox_gender.setItemText(0, QCoreApplication.translate("MainWindow", "Male", None))
+        self.comboBox_gender.setItemText(1, QCoreApplication.translate("MainWindow", "Female", None))
+        self.comboBox_gender.setItemText(2, QCoreApplication.translate("MainWindow", "Perfer not to say", None))
+        self.lineEdit_username.setText(QCoreApplication.translate("MainWindow", "Mindwave2", None))
 
-        self.groupBox_3.setTitle(
-            QCoreApplication.translate("MainWindow", "Session Config", None)
-        )
-        self.label_trials.setText(
-            QCoreApplication.translate("MainWindow", "Number of Trials", None)
-        )
-        self.label_ready.setText(
-            QCoreApplication.translate("MainWindow", "Ready duration", None)
-        )
-        self.lineEdit_ready.setText(
-            QCoreApplication.translate("MainWindow", "1.0", None)
-        )
-        self.label_baseline.setText(
-            QCoreApplication.translate("MainWindow", "Baseline duration", None)
-        )
-        self.lineEdit_baseline.setText(
-            QCoreApplication.translate("MainWindow", "15.0", None)
-        )
-        self.checkBox_blinks.setText(
-            QCoreApplication.translate("MainWindow", "Capture Blinks", None)
-        )
-        self.label_rest.setText(
-            QCoreApplication.translate("MainWindow", "Rest duration", None)
-        )
-        self.lineEdit_rest.setText(
-            QCoreApplication.translate("MainWindow", "2.0", None)
-        )
-        self.label_motor.setText(
-            QCoreApplication.translate("MainWindow", "Motor duration", None)
-        )
-        self.lineEdit_motor.setText(
-            QCoreApplication.translate("MainWindow", "4.0", None)
-        )
-        self.label_cue.setText(
-            QCoreApplication.translate("MainWindow", "Cue duration", None)
-        )
+        self.groupBox_3.setTitle(QCoreApplication.translate("MainWindow", "Session Config", None))
+        self.label_trials.setText(QCoreApplication.translate("MainWindow", "Number of Trials", None))
+        self.label_ready.setText(QCoreApplication.translate("MainWindow", "Ready duration", None))
+        self.lineEdit_ready.setText(QCoreApplication.translate("MainWindow", "1.0", None))
+        self.label_baseline.setText(QCoreApplication.translate("MainWindow", "Baseline duration", None))
+        self.lineEdit_baseline.setText(QCoreApplication.translate("MainWindow", "15.0", None))
+        self.checkBox_blinks.setText(QCoreApplication.translate("MainWindow", "Capture Blinks", None))
+        self.label_rest.setText(QCoreApplication.translate("MainWindow", "Rest duration", None))
+        self.lineEdit_rest.setText(QCoreApplication.translate("MainWindow", "2.0", None))
+        self.label_motor.setText(QCoreApplication.translate("MainWindow", "Motor duration", None))
+        self.lineEdit_motor.setText(QCoreApplication.translate("MainWindow", "4.0", None))
+        self.label_cue.setText(QCoreApplication.translate("MainWindow", "Cue duration", None))
         self.lineEdit_cue.setText(QCoreApplication.translate("MainWindow", "1.5", None))
-        self.label_extra.setText(
-            QCoreApplication.translate("MainWindow", "Extra Motor duration", None)
-        )
-        self.lineEdit_extra.setText(
-            QCoreApplication.translate("MainWindow", "3.0", None)
-        )
-        self.label_classes.setText(
-            QCoreApplication.translate(
-                "MainWindow", "Classes (Seperated with comma)", None
-            )
-        )
-        self.lineEdit_classes.setText(
-            QCoreApplication.translate("MainWindow", "Left, Right", None)
-        )
-        self.label_savedir.setText(
-            QCoreApplication.translate("MainWindow", "Save Directory", None)
-        )
-        self.pushButton_savedir.setText(
-            QCoreApplication.translate("MainWindow", "Select Folder", None)
-        )
-        self.groupBox_4.setTitle(
-            QCoreApplication.translate("MainWindow", "Headset", None)
-        )
-        self.label_headset_connection.setText(
-            QCoreApplication.translate("MainWindow", "Connection State:", None)
-        )
-        self.label_headset_status.setText(
-            QCoreApplication.translate("MainWindow", "Disconnected", None)
-        )
-        self.pushButton_headset_connect.setText(
-            QCoreApplication.translate("MainWindow", "Connect", None)
-        )
-        self.pushButton_start_session.setText(
-            QCoreApplication.translate("MainWindow", "Start Session", None)
-        )
-        self.label_signalquality.setText(
-            QCoreApplication.translate("MainWindow", "Signal Quality:", None)
-        )
-        self.label_signalquality_percent.setText(
-            QCoreApplication.translate("MainWindow", "0%", None)
-        )
+        self.label_extra.setText(QCoreApplication.translate("MainWindow", "Extra Motor duration", None))
+        self.lineEdit_extra.setText(QCoreApplication.translate("MainWindow", "3.0", None))
+        self.label_classes.setText(QCoreApplication.translate("MainWindow", "Classes (Seperated with comma)", None))
+        self.lineEdit_classes.setText(QCoreApplication.translate("MainWindow", "Left, Right", None))
+        self.label_savedir.setText(QCoreApplication.translate("MainWindow", "Save Directory", None))
+        self.pushButton_savedir.setText(QCoreApplication.translate("MainWindow", "Select Folder", None))
+        self.groupBox_4.setTitle(QCoreApplication.translate("MainWindow", "Headset", None))
+        self.label_headset_connection.setText(QCoreApplication.translate("MainWindow", "Connection State:", None))
+        self.label_headset_status.setText(QCoreApplication.translate("MainWindow", "Disconnected", None))
+        self.pushButton_headset_connect.setText(QCoreApplication.translate("MainWindow", "Connect", None))
+        self.pushButton_start_session.setText(QCoreApplication.translate("MainWindow", "Start Session", None))
+        self.label_signalquality.setText(QCoreApplication.translate("MainWindow", "Signal Quality:", None))
+        self.label_signalquality_percent.setText(QCoreApplication.translate("MainWindow", "0%", None))
 
     # retranslateUi
 
@@ -503,9 +415,7 @@ class MainWindow(QMainWindow):
 
     def headset_connection(self):
         if self.headset.connection_status == ConnectionStatus.DISCONNECTED:
-            thread = threading.Thread(
-                target=self.headset.connect, daemon=True, kwargs={"timeout": 30}
-            )
+            thread = threading.Thread(target=self.headset.connect, daemon=True, kwargs={"timeout": 30})
         else:
             thread = threading.Thread(target=self.headset.disconnect, daemon=True)
         thread.start()
@@ -537,11 +447,7 @@ class MainWindow(QMainWindow):
                 cue_duration=float(self.ui.lineEdit_cue.text()),
                 motor_duration=float(self.ui.lineEdit_motor.text()),
                 extra_duration=float(self.ui.lineEdit_extra.text()),
-                save_dir=(
-                    self.ui.lineEdit_savedir.text()
-                    if self.ui.lineEdit_savedir.text()
-                    else "./sessions/"
-                ),
+                save_dir=(self.ui.lineEdit_savedir.text() if self.ui.lineEdit_savedir.text() else "./sessions/"),
                 capture_blinks=self.ui.checkBox_blinks.isChecked(),
             )
             self._logger.debug("Session Configuration: %s", sess_config)

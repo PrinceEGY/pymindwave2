@@ -5,7 +5,7 @@ from queue import Queue
 import threading
 from typing import Callable
 
-from util.logger import Logger
+from .logger import Logger
 
 
 class EventType(Enum):
