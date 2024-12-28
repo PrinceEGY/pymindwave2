@@ -51,7 +51,8 @@ class MindWaveMobile2(DaemonAsync):
 
     @connection_status.setter
     def connection_status(self, value: ConnectionStatus):
-        self._event_manager(EventType.HeadsetStatus, value)
+        if value != self._connection_status:
+            self._event_manager(EventType.HeadsetStatus, value)
         if value == ConnectionStatus.CONNECTED and self._connection_status != ConnectionStatus.CONNECTED:
             # Connection changed to Connected
             self._event_manager.add_listener(
@@ -178,8 +179,6 @@ class MindWaveMobile2(DaemonAsync):
                     await asyncio.sleep(0.1)
 
     def _update_status(self, data):
-        # TODO: create an Event queue to seperate the producing and consuming of events
-        # Set the connection status and signal quality based on the connector data
         # This is a naive way but there are no other ways to determine the connection status
         # Since the "status" field is not always present in the connector data
         if "status" in data:
@@ -194,6 +193,7 @@ class MindWaveMobile2(DaemonAsync):
             if "poorSignalLevel" in data:
                 self.signal_quality = data["poorSignalLevel"]
         elif "mentalEffort" in data or "familiarity" in data:
+            # To be used later if needed
             pass
         else:
             self.connection_status = ConnectionStatus.UNKOWN
