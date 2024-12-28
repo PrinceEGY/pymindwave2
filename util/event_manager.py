@@ -76,8 +76,13 @@ class EventManager:
             *args, **kwargs: Arguments for callbacks
         """
         for listener in self._listeners[event_type]:
-            self._queues[listener].put_nowait((event_type, args, kwargs))
-            self._thread_pool.submit(self._process_event, listener)
+            q = self._queues[listener]
+            lock = self._locks[listener]
+
+            q.put_nowait((event_type, args, kwargs))
+
+            if not lock.locked():
+                self._thread_pool.submit(self._process_event, listener)
 
     def _process_event(self, callback):
         """Process queued events for a callback until queue is empty."""
