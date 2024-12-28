@@ -8,3 +8,4 @@ class ConnectionStatus(Enum):
     SCANNING = 4
     NOTSCANNING = 5
     UNKOWN = 6
+    CONNECTION_LOST = 7

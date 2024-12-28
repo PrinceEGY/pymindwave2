@@ -53,22 +53,29 @@ class MindWaveMobile2(DaemonAsync):
     def connection_status(self, value: ConnectionStatus):
         if value != self._connection_status:
             self._event_manager(EventType.HeadsetStatus, value)
+
         if value == ConnectionStatus.CONNECTED and self._connection_status != ConnectionStatus.CONNECTED:
             # Connection changed to Connected
+            self._logger.info("Connected to MindWaveMobile2 device!")
+
             self._event_manager.add_listener(
                 event_type=EventType.ConnectorData,
                 listener=self._stream_parser,
             )
-            self._logger.info("Connected to MindWaveMobile2 device!")
+
         elif self._connection_status == ConnectionStatus.CONNECTED and value != ConnectionStatus.CONNECTED:
             # Connection changed from connected to something else
+            self._logger.info("MindWaveMobile2 device Disconnected!")
+            if self.is_running:
+                self.stop()
+
             self._event_manager.remove_listener(
                 event_type=EventType.ConnectorData,
                 listener=self._stream_parser,
             )
-            self._logger.info("MindWaveMobile2 device Disconnected!")
-            if self.is_running:
-                self.stop()
+
+            time.sleep(1)  # Wait for the read loop to stop
+            self._event_manager(EventType.HeadsetStatus, ConnectionStatus.CONNECTION_LOST)
 
         self._connection_status = value
 
