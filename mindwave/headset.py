@@ -20,16 +20,13 @@ class ConnectionStatus(Enum):
 
 
 class MindWaveMobile2(DaemonAsync):
-    def __init__(
-        self,
-        **tg_connector_args,
-    ):
+    def __init__(self, max_workers=4, **tg_connector_args):
         super().__init__()
         self.is_running = False
 
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._tg_connector = ThinkGearConnector(**tg_connector_args)
-        self._event_manager = EventManager()  # Emit ConnectorData events
+        self._event_manager = EventManager(max_workers=max_workers)  # Emit ConnectorData events
         self._signal_quality = 0
         self._connection_status = ConnectionStatus.DISCONNECTED
         self._stream_parser = StreamParser()
@@ -113,6 +110,7 @@ class MindWaveMobile2(DaemonAsync):
                 connect_task.cancel()
                 self.is_running = False
                 await self._read_loop_task
+                # TODO: Check if this is necessary
                 # raise self._read_loop_task.exception()  # raise any exceptions raised in the task
 
         except Exception:
