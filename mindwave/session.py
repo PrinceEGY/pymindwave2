@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 import random
@@ -5,10 +6,9 @@ import threading
 import time
 from mindwave.headset import MindWaveMobile2
 from datetime import datetime
-from mindwave.data import Data
-from util.connection_state import ConnectionStatus
-from util.event_manager import EventManager, EventType
-from util.logger import Logger
+from mindwave.headset import Data
+from .utils.event_manager import EventManager
+from .utils.logger import Logger
 import csv
 
 
@@ -33,20 +33,27 @@ class Session:
             self.start()
 
     def start(self) -> None:
-        assert not self.is_active, "Session is already active!"
-        assert not self._is_finished, "Session is finished!"
-        self.headset.on_data(self._collator)
+        if self.is_active:
+            self._logger.info("Session is already active!")
+            return
+        if self._is_finished:
+            self._logger.info("Session is finished!")
+            return
+
+        self.headset.on_data(self._data_collator)
+
         if self.capture_blinks:
             self.headset.on_blink(self._blinks_collator)
 
         self.start_time = datetime.now()
         self.is_active = True
-        self._logger.info(
-            f"New Session started at {self.start_time.strftime('%H:%M:%S')}"
-        )
+        self._logger.info(f"New Session started at {self.start_time.strftime('%H:%M:%S')}")
 
     def stop(self) -> None:
-        assert self.is_active, "Session is not active"
+        if not self.is_active:
+            self._logger.info("Session is not active!")
+            return
+
         self.end_time = datetime.now()
 
         self.is_active = False
@@ -54,15 +61,21 @@ class Session:
         self._logger.info(f"Session ended at {self.end_time.strftime('%H:%M:%S')}")
 
     def save(self, file_name: str):
-        assert not self.is_active, "Session is still active"
-        assert len(self) > 0, "Session data is empty"
+        if self.is_active:
+            self._logger.info("Session is still active!, stop the session before saving")
+            return
+        if len(self) == 0:
+            self._logger.info("Session data is empty!, nothing to save")
+            return
+
         with open(file_name, mode="w", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=self._data[0].keys())
             writer.writeheader()
             writer.writerows(self._data)
+
         self._logger.info(f"Session data saved to {file_name}")
 
-    def _collator(self, data: Data):
+    def _data_collator(self, data: Data):
         self._logger.debug(f"Data received: {data}")
         curr_time = datetime.now().strftime("%H:%M:%S")
         record = {
@@ -107,72 +120,30 @@ class Session:
         self._data.append(record)
 
     def __repr__(self) -> str:
-        start_time = (
-            self.start_time.strftime("%H:%M:%S")
-            if self.start_time
-            else "Session didn't start"
-        )
-        end_time = (
-            self.end_time.strftime("%H:%M:%S")
-            if self.end_time
-            else "Session didn't end"
-        )
-        return (
-            f"Session(start_time:{start_time}, "
-            f"end_time:{end_time}, is_active={self.is_active})"
-        )
+        start_time = self.start_time.strftime("%H:%M:%S") if self.start_time else "Session didn't start"
+        end_time = self.end_time.strftime("%H:%M:%S") if self.end_time else "Session didn't end"
+        return f"Session(start_time:{start_time}, " f"end_time:{end_time}, is_active={self.is_active})"
 
     def __len__(self) -> int:
         return len(self._data)
 
 
+@dataclass
 class SessionConfig:
-    def __init__(
-        self,
-        user_name: str = None,
-        user_age: int = None,
-        user_gender: str = None,
-        classes: list = [],
-        trials: int = 1,
-        baseline_duration: float = 15,
-        rest_duration: float = 2,
-        ready_duration: float = 1,
-        cue_duration: float = 1.5,
-        motor_duration: float = 4,
-        extra_duration: float = 0,  # Random duration to be added to the motor duration in range [0, extra_duration]
-        save_dir: str = "./sessions/",
-        capture_blinks: bool = False,
-    ):
-        self.user_name = user_name
-        self.user_age = user_age
-        self.user_gender = user_gender
-        self.classes = classes
-        self.trials = trials
-        self.baseline_duration = baseline_duration
-        self.rest_duration = rest_duration
-        self.ready_duration = ready_duration
-        self.cue_duration = cue_duration
-        self.motor_duration = motor_duration
-        self.extra_duration = extra_duration
-        self.save_dir = save_dir
-        self.capture_blinks = capture_blinks
+    user_name: str = None
+    user_age: int = None
+    user_gender: str = None
 
-    def __repr__(self):
-        return (
-            f"SessionConfig(user_name={self.user_name}, "
-            f"user_age={self.user_age}, "
-            f"user_gener={self.user_gender}, "
-            f"classes={self.classes}, "
-            f"trials={self.trials}, "
-            f"baseline_duration={self.baseline_duration}, "
-            f"rest_duration={self.rest_duration}, "
-            f"ready_duration={self.ready_duration}, "
-            f"cue_duration={self.cue_duration}, "
-            f"motor_duration={self.motor_duration}, "
-            f"extra_duration={self.extra_duration}, "
-            f"save_dir='{self.save_dir}', "
-            f"capture_blinks={self.capture_blinks})"
-        )
+    classes: list = field(default_factory=lambda: list())
+    trials: int = 1
+    baseline_duration: float = 15
+    rest_duration: float = 2
+    ready_duration: float = 1
+    cue_duration: float = 1.5
+    motor_duration: float = 4
+    extra_duration: float = 0  # Random duration to be added to the motor duration in range [0, extra_duration]
+    save_dir: str = "./sessions/"
+    capture_blinks: bool = False
 
 
 class SessionEvent(Enum):
@@ -189,11 +160,11 @@ class SessionEvent(Enum):
 
 
 class SessionManager:
-    def __init__(self, headset: MindWaveMobile2, config: SessionConfig):
+    def __init__(self, headset: MindWaveMobile2, config: SessionConfig, max_workers: int = 4):
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.headset = headset
         self.config = config
-        self._event_manager = EventManager()
+        self._event_manager = EventManager(max_workers=max_workers)
         self._events = []
         self._save_dir = None
 
@@ -206,9 +177,9 @@ class SessionManager:
         random.seed(time.perf_counter())
 
     def start(self) -> None:
-        assert (
-            self.headset.connection_status == ConnectionStatus.CONNECTED
-        ), "Headset not connected"
+        if self.session.is_active:
+            self._logger.info("Session is already active!")
+            return
 
         # Create user directory
         self._create_user_dir()
@@ -219,10 +190,16 @@ class SessionManager:
         thread.start()
 
         self.add_listener(self._session_handler)
-    
+
     def stop(self) -> None:
-        #TODO: 
+        # TODO:
         pass
+
+    def add_listener(self, listener):
+        self._event_manager.add_listener(SessionEvent, listener)
+
+    def remove_listener(self, listener):
+        self._event_manager.remove_listener(SessionEvent, listener)
 
     def _create_user_dir(self):
         # create user dir with incremental number if already exists
@@ -241,35 +218,30 @@ class SessionManager:
     def _save_info(self):
         file_name = f"{self._save_dir}/session.info"
         with open(file_name, mode="w") as file:
-            file.write("=" * 20 + "\n\n")
-            file.write(f"User info:\n")
+            file.write(" User info ".center(40, "=") + "\n")
             file.write(f"user_name: {self.config.user_name}\n")
             file.write(f"user_age: {self.config.user_age}\n")
             file.write(f"user_gender: {self.config.user_gender}\n")
+
             file.write("\n" + "=" * 20 + "\n\n")
-            file.write(f"Session info:\n")
+            file.write(" Session info ".center(40, "=") + "\n")
             file.write(f"classes: {self.config.classes}\n")
             file.write(f"trials: {self.config.trials}\n")
+            file.write(f"capture_blinks: {self.config.capture_blinks}\n")
+            file.write(f"save_dir: {self.config.save_dir}\n")
+
+            file.write("\n" + "=" * 20 + "\n\n")
+            file.write(" Durations info ".center(40, "=") + "\n")
             file.write(f"baseline_duration: {self.config.baseline_duration}\n")
             file.write(f"rest_duration: {self.config.rest_duration}\n")
             file.write(f"ready_duration: {self.config.ready_duration}\n")
             file.write(f"cue_duration: {self.config.cue_duration}\n")
             file.write(f"motor_duration: {self.config.motor_duration}\n")
             file.write(f"extra_duration: {self.config.extra_duration}\n")
-            file.write(f"save_dir: {self.config.save_dir}\n")
-            file.write(f"capture_blinks: {self.config.capture_blinks}\n")
-
-    def add_listener(self, listener):
-        self._event_manager.add_listener(SessionEvent, listener)
-
-    def remove_listener(self, listener):
-        self._event_manager.remove_listener(SessionEvent, listener)
 
     def _session_handler(self, *args):
         event: SessionEvent = args[0]
-        self._logger.info(
-            f"Session event: {event.name}, class: {args[1] if len(args) > 1 else None}"
-        )
+        self._logger.info(f"Session event: {event.name}, class: {args[1] if len(args) > 1 else None}")
         curr_time = datetime.now().strftime("%H:%M:%S")
         record = {
             "time": curr_time,
@@ -327,7 +299,9 @@ class SessionManager:
         return classes_events
 
     def _save_events(self):
-        assert len(self._events) > 0, "No events to save"
+        if len(self._events) == 0:
+            self._logger.info("No events to save")
+            return
 
         Path(self.config.save_dir).mkdir(parents=True, exist_ok=True)
         file_name = f"{self._save_dir}/events.csv"
@@ -336,4 +310,5 @@ class SessionManager:
             writer = csv.DictWriter(file, fieldnames=self._events[0].keys())
             writer.writeheader()
             writer.writerows(self._events)
+
         self._logger.info(f"Session events saved to {file_name}")
