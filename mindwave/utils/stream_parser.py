@@ -1,6 +1,42 @@
-from mindwave.data import Data
+from dataclasses import dataclass, field
 from .event_manager import EventManager, EventType
 from .logger import Logger
+
+
+@dataclass
+class Data:
+    raw_data: list[int] = field(default_factory=lambda: [0 for _ in range(512)])
+    attention: int = 0
+    meditation: int = 0
+
+    delta: int = 0
+    theta: int = 0
+    lowAlpha: int = 0
+    highAlpha: int = 0
+    lowBeta: int = 0
+    highBeta: int = 0
+    lowGamma: int = 0
+    highGamma: int = 0
+
+    def update_data(self, **kwargs):
+        for key, value in kwargs.items():
+            if not hasattr(self, key):
+                raise AttributeError(f"Invalid attribute: {key}")
+
+            setattr(self, key, value)
+
+    def __repr__(self) -> str:
+        raw_summary = (
+            f"[{', '.join(map(str, self.raw_data[:3]))}...."
+            f"{', '.join(map(str, self.raw_data[-3:]))} "
+            f"(length: {len(self.raw_data)})]"
+        )
+        return (
+            f"Data(raw_data={raw_summary}, attention={self.attention}, "
+            f"meditation={self.meditation}, delta={self.delta}, theta={self.theta}, "
+            f"lowAlpha={self.lowAlpha}, highAlpha={self.highAlpha}, lowBeta={self.lowBeta}, "
+            f"highBeta={self.highBeta}, lowGamma={self.lowGamma}, highGamma={self.highGamma})"
+        )
 
 
 class StreamParser:
@@ -13,7 +49,7 @@ class StreamParser:
         self.event_manager = EventManager()
         self._data = Data()
         self._raw_data = []
-        self._raw_flag = False
+        self._raw_completed = False
 
     def stream_data(self, data):
         """
@@ -24,9 +60,9 @@ class StreamParser:
             self._logger.debug(f"Blink Triggered with strength: {data['blinkStrength']}")
         else:
             data = self._parse_data(data)
-            if self._raw_flag:
+            if self._raw_completed:
                 self.event_manager(EventType.HeadsetData, self._data)
-                self._raw_flag = False
+                self._raw_completed = False
                 self._logger.debug(f"data streamed: {self._data}")
 
     def __call__(self, data):
@@ -46,7 +82,7 @@ class StreamParser:
             if len(self._raw_data) == 512:
                 self._data.update_data(raw_data=self._raw_data)
                 self._raw_data = []
-                self._raw_flag = True
+                self._raw_completed = True
         else:
             self._logger.debug(f"Unknown data: {data}")
 
