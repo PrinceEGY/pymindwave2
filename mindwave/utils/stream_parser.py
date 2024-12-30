@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+
 from .event_manager import EventManager, EventType
 from .logger import Logger
 

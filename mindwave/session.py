@@ -1,15 +1,16 @@
-from dataclasses import dataclass, field
-from enum import Enum
-from pathlib import Path
+import csv
 import random
 import threading
 import time
-from mindwave.headset import MindWaveMobile2
+from dataclasses import dataclass, field
 from datetime import datetime
-from mindwave.headset import Data
+from enum import Enum
+from pathlib import Path
+
+from .headset import MindWaveMobile2
 from .utils.event_manager import EventManager
 from .utils.logger import Logger
-import csv
+from .utils.stream_parser import Data
 
 
 class Session:

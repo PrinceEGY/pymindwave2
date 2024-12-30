@@ -1,8 +1,8 @@
+import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from queue import Queue
-import threading
 from typing import Callable
 
 from .logger import Logger

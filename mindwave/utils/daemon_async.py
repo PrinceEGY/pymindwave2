@@ -1,8 +1,8 @@
-import warnings
 import asyncio
-from functools import wraps
 import threading
 import traceback
+import warnings
+from functools import wraps
 
 
 class DaemonAsync:

@@ -1,9 +1,11 @@
-from enum import Enum
+import asyncio
 import json
 import threading
-import asyncio
 import time
-from mindwave.connector import ThinkGearConnector
+from enum import Enum
+
+from .connector import ThinkGearConnector
+
 from .utils.daemon_async import verbose
 from .utils.event_manager import EventManager, EventType
 from .utils.logger import Logger
