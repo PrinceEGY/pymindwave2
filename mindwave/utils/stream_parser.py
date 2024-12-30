@@ -62,7 +62,7 @@ class StreamParser:
         else:
             data = self._parse_data(data)
             if self._raw_completed:
-                self.event_manager(EventType.HeadsetData, self._data)
+                self.event_manager.emit(EventType.HeadsetData, self._data)
                 self._raw_completed = False
                 self._logger.debug(f"data streamed: {self._data}")
 

@@ -262,33 +262,33 @@ class SessionManager:
         classes_events = self._setup_classes_events()
 
         time.sleep(1)
-        self._event_manager(SessionEvent, SessionEvent.SESSION_START)
+        self.self._event_manager.emit(SessionEvent, SessionEvent.SESSION_START)
         time.sleep(1)
 
-        self._event_manager(SessionEvent, SessionEvent.BASELINE_START)
+        self.self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_START)
         time.sleep(self.config.baseline_duration)
 
-        self._event_manager(SessionEvent, SessionEvent.BASELINE_END)
+        self.self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_END)
 
         for class_event in classes_events:
-            self._event_manager(SessionEvent, SessionEvent.TRIAL_START, class_event)
+            self.self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_START, class_event)
 
-            self._event_manager(SessionEvent, SessionEvent.REST)
+            self.self._event_manager.emit(SessionEvent, SessionEvent.REST)
             time.sleep(self.config.rest_duration)
 
-            self._event_manager(SessionEvent, SessionEvent.READY)
+            self.self._event_manager.emit(SessionEvent, SessionEvent.READY)
             time.sleep(self.config.ready_duration)
 
-            self._event_manager(SessionEvent, SessionEvent.CUE)
+            self.self._event_manager.emit(SessionEvent, SessionEvent.CUE)
             time.sleep(self.config.cue_duration)
 
-            self._event_manager(SessionEvent, SessionEvent.MOTOR)
+            self.self._event_manager.emit(SessionEvent, SessionEvent.MOTOR)
             time.sleep(self.config.motor_duration)
             time.sleep(random.uniform(0, self.config.extra_duration))
 
-            self._event_manager(SessionEvent, SessionEvent.TRIAL_END, class_event)
+            self.self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_END, class_event)
 
-        self._event_manager(SessionEvent, SessionEvent.SESSION_END)
+        self.self._event_manager.emit(SessionEvent, SessionEvent.SESSION_END)
 
     def _setup_classes_events(self) -> list:
         classes_events = []

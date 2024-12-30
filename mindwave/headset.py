@@ -51,7 +51,7 @@ class MindWaveMobile2:
         value = abs(value - 200)  # Invert the signal quality value
         value = value / 2  # Normalize the signal quality value to 0-100%
         if value != self._signal_quality:
-            self._event_manager(EventType.SignalQuality, value)
+            self._event_manager.emit(EventType.SignalQuality, value)
             self._logger.debug(f"Signal Quality value Changed: {value}%")
 
         self._signal_quality = float(value)
@@ -63,7 +63,7 @@ class MindWaveMobile2:
     @connection_status.setter
     def connection_status(self, value: ConnectionStatus):
         if value != self._connection_status:
-            self._event_manager(EventType.HeadsetStatus, value)
+            self._event_manager.emit(EventType.HeadsetStatus, value)
 
         if value == ConnectionStatus.CONNECTED and self._connection_status != ConnectionStatus.CONNECTED:
             # Connection changed to Connected
@@ -86,7 +86,7 @@ class MindWaveMobile2:
             )
 
             time.sleep(3)  # Wait for the read loop to stop
-            self._event_manager(EventType.HeadsetStatus, ConnectionStatus.CONNECTION_LOST)
+            self._event_manager.emit(EventType.HeadsetStatus, ConnectionStatus.CONNECTION_LOST)
 
         self._connection_status = value
 
@@ -171,7 +171,7 @@ class MindWaveMobile2:
 
     async def _timeout(self):
         await self._disconnect()
-        self._event_manager(EventType.Timeout)
+        self._event_manager.emit(EventType.Timeout)
 
     async def _disconnect(self):
         async with self._lock:
@@ -215,7 +215,7 @@ class MindWaveMobile2:
                     try:
                         out = await self._tg_connector.read()
                         data = json.loads(out)
-                        self._event_manager(EventType.ConnectorData, data)
+                        self._event_manager.emit(EventType.ConnectorData, data)
                     except json.JSONDecodeError:
                         self._logger.warning(f"JSONDecodeError: {out}")
                     except UnicodeDecodeError as e:

@@ -66,9 +66,9 @@ class EventManager:
         self._queues.pop(listener)
         self._locks.pop(listener)
 
-    def trigger(self, event_type: EventType, *args, **kwargs) -> None:
+    def emit(self, event_type: EventType, *args, **kwargs) -> None:
         """
-        Trigger event for all registered callbacks.
+        Emits event for all registered callbacks.
         Events are processed in order per callback.
 
         Args:
@@ -97,14 +97,3 @@ class EventManager:
 
                 if not q.empty():
                     self._thread_pool.submit(self._process_event, callback)
-
-    def __call__(self, event_type: EventType, *args, **kwargs):
-        """
-        Trigger event for all registered callbacks.
-        Events are processed in order per callback.
-
-        Args:
-            event_type: Event to trigger
-            *args, **kwargs: Arguments for callbacks
-        """
-        self.trigger(event_type, *args, **kwargs)
