@@ -38,7 +38,8 @@ class ThinkGearConnector:
             self._logger.info("Connected to ThinkGear Connector")
         except ConnectionRefusedError:
             self._logger.error(
-                f"Connection to ThinkGear Connector at {self.host}:{self.port} refused!, Check if the ThinkGear Connector is running."
+                f"Connection to ThinkGear Connector at {self.host}:{self.port} refused!, "
+                "Check if the ThinkGear Connector is running."
             )
             await asyncio.sleep(3)
             return False
@@ -58,9 +59,10 @@ class ThinkGearConnector:
 
         if not self.is_connected():
             self._logger.info("The device is already disconnected!")
-            return
+            return True
 
         self.st_writer.close()  # Closing the st_writer automatically cleans up the st_reader as well.
+        return True
 
     def is_connected(self):
         if not self.st_writer:
