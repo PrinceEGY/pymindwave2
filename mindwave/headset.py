@@ -20,10 +20,11 @@ class ConnectionStatus(Enum):
     CONNECTION_LOST = 7
 
 
-class MindWaveMobile2(DaemonAsync):
-    def __init__(self, max_workers=4, **tg_connector_args):
+class MindWaveMobile2:
+    def __init__(self, max_workers=4, event_loop=None, **tg_connector_args):
         super().__init__()
         self.is_running = False
+        self._event_loop = event_loop
 
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self._tg_connector = ThinkGearConnector(**tg_connector_args)
@@ -82,57 +83,51 @@ class MindWaveMobile2(DaemonAsync):
                 listener=self._stream_parser,
             )
 
-            time.sleep(1)  # Wait for the read loop to stop
+            time.sleep(3)  # Wait for the read loop to stop
             self._event_manager(EventType.HeadsetStatus, ConnectionStatus.CONNECTION_LOST)
 
         self._connection_status = value
 
-    @daemon_task
-    async def start(self, n_tries=3, timeout=15):
+    def start(self, n_tries=3, timeout=15, blocking=True):
+        self._setup_event_loop()
+        future = asyncio.run_coroutine_threadsafe(self._start_async(n_tries=n_tries, timeout=timeout), self._event_loop)
+
+        if blocking:
+            return future.result()
+
+    async def _start_async(self, n_tries=3, timeout=15):
         """Start the connection to the MindWaveMobile2 device."""
         if self.is_running:
             self._logger.info("MindWaveMobile2 device is already running!")
-            return
+            return True
 
         self.is_running = True
-        self._read_loop_task = asyncio.create_task(self._read_loop())
-        connect_task = asyncio.create_task(self._connect(n_tries=n_tries, timeout=timeout))
-        done, pending = await asyncio.wait([self._read_loop_task, connect_task], return_when=asyncio.FIRST_COMPLETED)
+        connection_success = await self._connect(n_tries=n_tries, timeout=timeout)
 
-        try:
-            if connect_task in done:
-                connection_success = await connect_task
-                if not connection_success:
-                    self.is_running = False
-                    self._read_loop_task.cancel()
-                else:
-                    await self._read_loop_task
-            elif self._read_loop_task in done:
-                connect_task.cancel()
-                self.is_running = False
-                await self._read_loop_task
-                # TODO: Check if this is necessary
-                # raise self._read_loop_task.exception()  # raise any exceptions raised in the task
-
-        except Exception:
+        if not connection_success:
             self.is_running = False
-            raise
-        finally:
-            # Clean up the read loop task
-            if not self._read_loop_task.done():
-                self._read_loop_task.cancel()
+            return False
 
-    @daemon_task
-    async def stop(self):
+        return True
+
+    def stop(self, blocking=True):
+        self._setup_event_loop()
+
+        future = asyncio.run_coroutine_threadsafe(self._stop_async(), self._event_loop)
+        if blocking:
+            return future.result()
+
+    async def _stop_async(self):
         """Stop the connection to the MindWaveMobile2 device."""
         if not self.is_running:
             self._logger.info("MindWaveMobile2 device is already stopped!")
-            return
+            return True
 
         self._logger.info("Stopping MindWaveMobile2 device...")
         self.is_running = False
+        self._read_loop_task.cancel()
         await asyncio.sleep(1)
-        await self._disconnect()
+        return await self._disconnect()
 
     async def _connect(self, timeout=15, n_tries=3):
         """Attempt to connect to the MindWaveMobile2 device with a specified number of retries in case of a timeout."""
@@ -144,6 +139,8 @@ class MindWaveMobile2(DaemonAsync):
                 await asyncio.sleep(1)
 
         self._logger.error("Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!")
+        self.is_running = False
+        self._read_loop_task.cancel()
         return False
 
     async def _attempt_connect(self, timeout=15):
@@ -162,6 +159,10 @@ class MindWaveMobile2(DaemonAsync):
         if await self._tg_connector.connect():
             self._logger.info("Connecting to MindWaveMobile2 device...")
 
+            if self._read_loop_task is None or self._read_loop_task.done():
+                self._read_loop_task = asyncio.create_task(self._read_loop())
+                self._read_loop_task
+
             return await check_bluetooth_connection()
 
         return False
@@ -174,11 +175,37 @@ class MindWaveMobile2(DaemonAsync):
         async with self._lock:
             if self.connection_status == ConnectionStatus.DISCONNECTED and not self._tg_connector.is_connected():
                 self._logger.info("MindWaveMobile2 device is already disconnected!")
-                return
+                return True
 
             self.connection_status = ConnectionStatus.DISCONNECTED
-            self._tg_connector.disconnect()
+            return self._tg_connector.disconnect()
 
+    def _setup_event_loop(self) -> None:
+        def run_on_thread(loop):
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+
+        # Event loop is provided
+        if self._event_loop is not None:
+            return
+
+        # Event loop is not provided, get the current event loop if it exists
+        try:
+            self._event_loop = asyncio.get_running_loop()
+            self._logger.info("Event loop is not provided, Found an existing event loop running and using it.")
+
+        # Event loop is not provided and no event loop is running in the current thread
+        # create a new event loop in a new thread
+        except RuntimeError:
+            self._logger.warning(
+                "Event loop is not provided and no Event loop is running in the current thread. "
+                "Creating a new event loop in a new thread."
+            )
+            self._event_loop = asyncio.new_event_loop()
+            thread = threading.Thread(target=run_on_thread, args=(self._event_loop,), daemon=True)
+            thread.start()
+
+    @verbose
     async def _read_loop(self):
         while self.is_running:
             async with self._lock:
@@ -191,6 +218,9 @@ class MindWaveMobile2(DaemonAsync):
                         self._logger.warning(f"JSONDecodeError: {out}")
                     except UnicodeDecodeError as e:
                         self._logger.warning(f"UnicodeDecodeError: {e}, data: {out}")
+                    except Exception as e:
+                        self.is_running = False
+                        raise
                 else:
                     await asyncio.sleep(0.1)
 
