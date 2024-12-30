@@ -5,6 +5,8 @@ from enum import Enum
 from queue import Queue
 from typing import Callable
 
+from mindwave.utils.singleton_meta import SingletonMeta
+
 from .logger import Logger
 
 
@@ -17,7 +19,7 @@ class EventType(Enum):
     SignalQuality = 6
 
 
-class EventManager:
+class EventManager(metaclass=SingletonMeta):
     """
     Event manager that allows for event-driven programming with multiple listeners.
 
