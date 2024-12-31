@@ -19,6 +19,15 @@ class EventType(Enum):
     SignalQuality = 6
 
 
+class Subscription:
+    def __init__(self, event_type: EventType, listener: Callable):
+        self.event_type = event_type
+        self.listener = listener
+
+    def detach(self):
+        EventManager().remove_listener(self.event_type, self.listener)
+
+
 class EventManager(metaclass=SingletonMeta):
     """
     Event manager that allows for event-driven programming with multiple listeners.
@@ -31,7 +40,7 @@ class EventManager(metaclass=SingletonMeta):
     at different speeds without blocking each other.
     """
 
-    def __init__(self, max_workers: int = None):
+    def __init__(self, max_workers: int = None) -> None:
         """
         Initialize event manager with thread pool.
 
@@ -42,19 +51,24 @@ class EventManager(metaclass=SingletonMeta):
         self._listeners = defaultdict(list)
         self._queues = defaultdict(Queue)
         self._locks = defaultdict(threading.Lock)
+        self._supscriptions = defaultdict(tuple)
         self._thread_pool = ThreadPoolExecutor(max_workers)
 
-    def add_listener(self, event_type: EventType, listener: Callable) -> None:
+    def add_listener(self, event_type: EventType, listener: Callable) -> Subscription:
         """
         Register a callback function for a specific event type.
         """
+        key = (event_type, listener)
         if listener in self._listeners[event_type]:
             self._logger.info("Listener already exists")
-            return
+            return self._supscriptions[key]
 
         self._listeners[event_type].append(listener)
         self._queues[listener] = Queue()
         self._locks[listener] = threading.Lock()
+
+        self._supscriptions[key] = Subscription(*key)
+        return self._supscriptions[key]
 
     def remove_listener(self, event_type: EventType, listener: Callable) -> None:
         """
@@ -67,6 +81,7 @@ class EventManager(metaclass=SingletonMeta):
         self._listeners[event_type].remove(listener)
         self._queues.pop(listener)
         self._locks.pop(listener)
+        self._supscriptions.pop((event_type, listener))
 
     def emit(self, event_type: EventType, *args, **kwargs) -> None:
         """
@@ -86,7 +101,7 @@ class EventManager(metaclass=SingletonMeta):
             if not lock.locked():
                 self._thread_pool.submit(self._process_event, listener)
 
-    def _process_event(self, callback):
+    def _process_event(self, callback) -> None:
         """Process queued events for a callback until queue is empty."""
         q = self._queues[callback]
         lock = self._locks[callback]

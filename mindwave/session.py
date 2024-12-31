@@ -18,7 +18,7 @@ class Session:
         self,
         headset: MindWaveMobile2,
         capture_blinks: bool = False,
-        lazy_start: bool = False,
+        lazy_start: bool = True,
     ):
         self._logger = Logger._instance.get_logger(self.__class__.__name__)
         self.capture_blinks = capture_blinks
@@ -166,6 +166,7 @@ class SessionManager:
         self.headset = headset
         self.config = config
         self._event_manager = EventManager(max_workers=max_workers)
+        self._events_subscription
         self._events = []
         self._save_dir = None
 
@@ -187,20 +188,17 @@ class SessionManager:
         self._save_info()
 
         self.session.start()
-        thread = threading.Thread(target=self._session_loop)
+        thread = threading.Thread(target=self._session_loop)  # TODO: Check if needed to be daemon
         thread.start()
 
-        self.add_listener(self._session_handler)
+        self._events_subscription = self.on_event(self._session_handler)
 
     def stop(self) -> None:
         # TODO:
         pass
 
-    def add_listener(self, listener):
-        self._event_manager.add_listener(SessionEvent, listener)
-
-    def remove_listener(self, listener):
-        self._event_manager.remove_listener(SessionEvent, listener)
+    def on_event(self, listener):
+        return self._event_manager.add_listener(SessionEvent, listener)
 
     def _create_user_dir(self):
         # create user dir with incremental number if already exists

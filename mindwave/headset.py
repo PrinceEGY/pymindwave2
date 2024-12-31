@@ -5,7 +5,6 @@ import time
 from enum import Enum
 
 from .connector import ThinkGearConnector
-
 from .utils.daemon_async import verbose
 from .utils.event_manager import EventManager, EventType
 from .utils.logger import Logger
@@ -254,20 +253,20 @@ class MindWaveMobile2:
 
     def on_data(self, callback):
         """Add a callback function to the parsed data events. The callback will be called when the parsed data event is triggered."""
-        self._stream_parser.add_listener(EventType.HeadsetData, callback)
+        return self._stream_parser.add_listener(EventType.HeadsetData, callback)
 
     def on_blink(self, callback):
         """Add a callback function to the blink events. The callback will be called when the blink event is triggered."""
-        self._stream_parser.add_listener(EventType.Blink, callback)
+        return self._stream_parser.add_listener(EventType.Blink, callback)
 
     def on_status_change(self, callback):
         """Add a callback function to the connection status events. The callback will be called when the connection status event is triggered."""
-        self._event_manager.add_listener(EventType.HeadsetStatus, callback)
+        return self._event_manager.add_listener(EventType.HeadsetStatus, callback)
 
     def on_signal_quality_change(self, callback):
         """Add a callback function to the signal quality change events. The callback will be called when the signal quality change event is triggered."""
-        self._event_manager.add_listener(EventType.SignalQuality, callback)
+        return self._event_manager.add_listener(EventType.SignalQuality, callback)
 
     def on_connector_data(self, callback):
         """Add a callback function to the connector data events. The callback will be called when the connector data event is triggered."""
-        self._event_manager.add_listener(EventType.ConnectorData, callback)
+        return self._event_manager.add_listener(EventType.ConnectorData, callback)

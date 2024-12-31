@@ -70,10 +70,7 @@ class StreamParser:
         self.stream_data(data)
 
     def add_listener(self, event_type, listener):
-        self.event_manager.add_listener(event_type, listener)
-
-    def remove_listener(self, event_type, listener):
-        self.event_manager.remove_listener(event_type, listener)
+        return self.event_manager.add_listener(event_type, listener)
 
     def _parse_data(self, data):
         if "eSense" in data:
