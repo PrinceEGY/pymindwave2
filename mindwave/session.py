@@ -20,7 +20,7 @@ class Session:
         capture_blinks: bool = False,
         lazy_start: bool = True,
     ):
-        self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self._logger = Logger.get_logger(self.__class__.__name__)
         self.capture_blinks = capture_blinks
         self.headset = headset
 
@@ -162,7 +162,7 @@ class SessionEvent(Enum):
 
 class SessionManager:
     def __init__(self, headset: MindWaveMobile2, config: SessionConfig, max_workers: int = 4):
-        self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self._logger = Logger.get_logger(self.__class__.__name__)
         self.headset = headset
         self.config = config
         self._event_manager = EventManager(max_workers=max_workers)

@@ -27,7 +27,7 @@ class MindWaveMobile2:
         self.is_running = False
         self._event_loop = event_loop
 
-        self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self._logger = Logger.get_logger(self.__class__.__name__)
         self._tg_connector = ThinkGearConnector(**tg_connector_args)
         self._event_manager = EventManager(max_workers=max_workers)  # Emit ConnectorData events
         self._signal_quality = 0
@@ -198,7 +198,7 @@ class MindWaveMobile2:
         # Event loop is not provided and no event loop is running in the current thread
         # create a new event loop in a new thread
         except RuntimeError:
-            self._logger.warning(
+            self._logger.info(
                 "Event loop is not provided and no Event loop is running in the current thread. "
                 "Creating a new event loop in a new thread."
             )
@@ -216,9 +216,9 @@ class MindWaveMobile2:
                         data = json.loads(out)
                         self._event_manager.emit(EventType.ConnectorData, data)
                     except json.JSONDecodeError:
-                        self._logger.warning(f"JSONDecodeError: {out}")
+                        self._logger.error(f"JSONDecodeError: {out}")
                     except UnicodeDecodeError as e:
-                        self._logger.warning(f"UnicodeDecodeError: {e}, data: {out}")
+                        self._logger.error(f"UnicodeDecodeError: {e}, data: {out}")
                     except Exception as e:
                         self.is_running = False
                         raise

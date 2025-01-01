@@ -46,7 +46,7 @@ class StreamParser:
     """
 
     def __init__(self):
-        self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self._logger = Logger.get_logger(self.__class__.__name__)
         self.event_manager = EventManager()
         self._data = Data()
         self._raw_data = []

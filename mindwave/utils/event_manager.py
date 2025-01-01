@@ -47,7 +47,7 @@ class EventManager(metaclass=SingletonMeta):
         Args:
             max_workers: Maximum number of threads to use
         """
-        self._logger = Logger._instance.get_logger(self.__class__.__name__)
+        self._logger = Logger.get_logger(self.__class__.__name__)
         self._listeners = defaultdict(list)
         self._queues = defaultdict(Queue)
         self._locks = defaultdict(threading.Lock)
