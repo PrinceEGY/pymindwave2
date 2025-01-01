@@ -251,7 +251,7 @@ class SessionManager:
         self._events.append(record)
         if event == SessionEvent.SESSION_END:
             self.session.stop()
-            self.remove_listener(self._session_handler)
+            self._events_subscription.detach()
 
             self._save_events()
             self.session.save(f"{self._save_dir}/data.csv")
@@ -260,33 +260,33 @@ class SessionManager:
         classes_events = self._setup_classes_events()
 
         time.sleep(1)
-        self.self._event_manager.emit(SessionEvent, SessionEvent.SESSION_START)
+        self._event_manager.emit(SessionEvent, SessionEvent.SESSION_START)
         time.sleep(1)
 
-        self.self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_START)
+        self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_START)
         time.sleep(self.config.baseline_duration)
 
-        self.self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_END)
+        self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_END)
 
         for class_event in classes_events:
-            self.self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_START, class_event)
+            self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_START, class_event)
 
-            self.self._event_manager.emit(SessionEvent, SessionEvent.REST)
+            self._event_manager.emit(SessionEvent, SessionEvent.REST)
             time.sleep(self.config.rest_duration)
 
-            self.self._event_manager.emit(SessionEvent, SessionEvent.READY)
+            self._event_manager.emit(SessionEvent, SessionEvent.READY)
             time.sleep(self.config.ready_duration)
 
-            self.self._event_manager.emit(SessionEvent, SessionEvent.CUE)
+            self._event_manager.emit(SessionEvent, SessionEvent.CUE)
             time.sleep(self.config.cue_duration)
 
-            self.self._event_manager.emit(SessionEvent, SessionEvent.MOTOR)
+            self._event_manager.emit(SessionEvent, SessionEvent.MOTOR)
             time.sleep(self.config.motor_duration)
             time.sleep(random.uniform(0, self.config.extra_duration))
 
-            self.self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_END, class_event)
+            self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_END, class_event)
 
-        self.self._event_manager.emit(SessionEvent, SessionEvent.SESSION_END)
+        self._event_manager.emit(SessionEvent, SessionEvent.SESSION_END)
 
     def _setup_classes_events(self) -> list:
         classes_events = []
