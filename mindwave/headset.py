@@ -141,7 +141,8 @@ class MindWaveMobile2:
 
         self._logger.error("Maximum number of retries reached. Failed to connect to MindWaveMobile2 device!")
         self.is_running = False
-        self._read_loop_task.cancel()
+        if self._read_loop_task is not None:  # It will be None if the connection to the ThinkGearConnector failed
+            self._read_loop_task.cancel()
         return False
 
     async def _attempt_connect(self, timeout=15):
