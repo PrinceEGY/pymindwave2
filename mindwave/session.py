@@ -64,9 +64,9 @@ class Session:
         self._save_dir = None
         self._data_subscription = None
         self._blinks_subscription = None
-        self._events_subscription = None
         self._data = []
         self._events = []
+        self._stop_flag = threading.Event()
 
         if not lazy_start:
             self.start()
@@ -82,7 +82,6 @@ class Session:
             return
 
         self._data_subscription = self.headset.on_data(self._data_collator)
-        self._events_subscription = self.on_event(self._session_handler)
 
         if self.config.capture_blinks:
             self._blinks_subscription = self.headset.on_blink(self._blinks_collator)
@@ -92,8 +91,9 @@ class Session:
 
         self.is_active = True
         self.start_time = datetime.now()
+        self._stop_flag.clear()
 
-        thread = threading.Thread(target=self._session_loop)  # TODO: Check if needed to be daemon
+        thread = threading.Thread(target=self._events_processor, daemon=True)
         thread.start()
 
         self._logger.info(f"New Session started at {self.start_time.strftime('%H:%M:%S')}")
@@ -103,13 +103,13 @@ class Session:
             self._logger.info("Session is not active!")
             return
 
+        self._stop_flag.set()
         self.end_time = datetime.now()
 
         self.is_active = False
         self.is_finished = True
 
         self._data_subscription.detach()
-        self._events_subscription.detach()
         if self.config.capture_blinks:
             self._blinks_subscription.detach()
 
@@ -139,37 +139,49 @@ class Session:
     def on_event(self, listener):
         return self._event_manager.add_listener(SessionEvent, listener)
 
-    def _session_loop(self) -> None:
+    def _events_processor(self):
+        for (event, *args), duration in self._event_generator():
+            if self._stop_flag.is_set():
+                break
+
+            self._logger.info(f"Session event: {event.name}" + (f" - class: {args[0]}" if len(args) > 0 else ""))
+            curr_time = datetime.now().strftime("%H:%M:%S")
+            record = {
+                "time": curr_time,
+                "event": event.name,
+                "class": args[0] if len(args) > 0 else None,
+            }
+
+            self._events.append(record)
+            self._event_manager.emit(event, *args)
+            self._stop_flag.wait(duration)
+
+            if event == SessionEvent.SESSION_END:
+                self.stop()
+
+    def _event_generator(self):
+        """Yields the session events in order in the form of ((Event, args), duration) tuple"""
         classes_events = self._setup_classes_events()
 
-        time.sleep(1)
-        self._event_manager.emit(SessionEvent, SessionEvent.SESSION_START)
-        time.sleep(1)
-
-        self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_START)
-        time.sleep(self.config.baseline_duration)
-
-        self._event_manager.emit(SessionEvent, SessionEvent.BASELINE_END)
+        yield (SessionEvent.SESSION_START,), 1
+        yield (SessionEvent.BASELINE_START,), self.config.baseline_duration
+        yield (SessionEvent.BASELINE_END,), 0
 
         for class_event in classes_events:
-            self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_START, class_event)
+            yield (SessionEvent.TRIAL_START, class_event), 0
 
-            self._event_manager.emit(SessionEvent, SessionEvent.REST)
-            time.sleep(self.config.rest_duration)
+            yield (SessionEvent.REST,), self.config.rest_duration
 
-            self._event_manager.emit(SessionEvent, SessionEvent.READY)
-            time.sleep(self.config.ready_duration)
+            yield (SessionEvent.READY,), self.config.ready_duration
 
-            self._event_manager.emit(SessionEvent, SessionEvent.CUE)
-            time.sleep(self.config.cue_duration)
+            yield (SessionEvent.CUE,), self.config.cue_duration
 
-            self._event_manager.emit(SessionEvent, SessionEvent.MOTOR)
-            time.sleep(self.config.motor_duration)
-            time.sleep(random.uniform(0, self.config.extra_duration))
+            motor_duration = self.config.motor_duration + random.uniform(0, self.config.extra_duration)
+            yield (SessionEvent.MOTOR,), motor_duration
 
-            self._event_manager.emit(SessionEvent, SessionEvent.TRIAL_END, class_event)
+            yield (SessionEvent.TRIAL_END, class_event), 0
 
-        self._event_manager.emit(SessionEvent, SessionEvent.SESSION_END)
+        yield (SessionEvent.SESSION_END,), 0
 
     def _setup_classes_events(self) -> list:
         classes_events = []
@@ -179,20 +191,6 @@ class Session:
         random.shuffle(classes_events)
 
         return classes_events
-
-    def _session_handler(self, *args):
-        event: SessionEvent = args[0]
-        self._logger.info(f"Session event: {event.name}" + (f" - class: {args[1]}" if len(args) > 1 else ""))
-        curr_time = datetime.now().strftime("%H:%M:%S")
-        record = {
-            "time": curr_time,
-            "event": event.name,
-            "class": args[1] if len(args) > 1 else None,
-        }
-        self._events.append(record)
-
-        if event == SessionEvent.SESSION_END:
-            self.stop()
 
     def _save_events(self):
         if len(self._events) == 0:
