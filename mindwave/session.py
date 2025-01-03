@@ -90,9 +90,8 @@ class Session:
             return
 
         self._data_subscription = self.headset.on_data(self._data_collator)
-
         if self.config.capture_blinks:
-            self._blinks_subscription = self.headset.on_blink(self._blinks_collator)
+            self._blinks_subscription = self.headset.on_blink(self._data_collator)
 
         self._create_user_dir()
         self._save_info()
@@ -215,32 +214,11 @@ class Session:
             writer.writeheader()
             writer.writerows(self._events)
 
-    def _data_collator(self, event: HeadsetDataEvent):
-        self._logger.debug(f"Data received: {event.data}")
+    def _data_collator(self, event: Event):
+        self._logger.debug(f"Session headset event received: {event}")
         record = {
             "time": event.timestamp.strftime("%H:%M:%S"),
-            "data_type": "headset_data",  # "headset_data" or "blink_data"
-            "attention": event.data.attention,
-            "meditation": event.data.meditation,
-            "delta": event.data.delta,
-            "theta": event.data.theta,
-            "lowAlpha": event.data.lowAlpha,
-            "highAlpha": event.data.highAlpha,
-            "lowBeta": event.data.lowBeta,
-            "highBeta": event.data.highBeta,
-            "lowGamma": event.data.lowGamma,
-            "highGamma": event.data.highGamma,
-            "raw_data": event.data.raw_data,
-            "blink_strength": None,
-        }
-
-        self._data.append(record)
-
-    def _blinks_collator(self, event: BlinkEvent):
-        self._logger.debug(f"Blink detected: {event.blink_strength}")
-        record = {
-            "time": event.timestamp.strftime("%H:%M:%S"),
-            "data_type": "blink_data",  # "headset_data" or "blink_data"
+            "data_type": None,  # "headset_data" or "blink_data"
             "attention": None,
             "meditation": None,
             "delta": None,
@@ -252,8 +230,24 @@ class Session:
             "lowGamma": None,
             "highGamma": None,
             "raw_data": None,
-            "blink_strength": event.blink_strength,
+            "blink_strength": None,
         }
+        if isinstance(event, BlinkEvent) and self.config.capture_blinks:
+            record["data_type"] = "blink_data"
+            record["blink_strength"] = event.blink_strength
+        elif isinstance(event, HeadsetDataEvent):
+            record["data_type"] = "headset_data"
+            record["attention"] = event.data.attention
+            record["meditation"] = event.data.meditation
+            record["delta"] = event.data.delta
+            record["theta"] = event.data.theta
+            record["lowAlpha"] = event.data.lowAlpha
+            record["highAlpha"] = event.data.highAlpha
+            record["lowBeta"] = event.data.lowBeta
+            record["highBeta"] = event.data.highBeta
+            record["lowGamma"] = event.data.lowGamma
+            record["highGamma"] = event.data.highGamma
+            record["raw_data"] = event.data.raw_data
 
         self._data.append(record)
 
