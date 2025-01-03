@@ -1,6 +1,8 @@
 import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from queue import Queue
 from typing import Callable
@@ -11,12 +13,23 @@ from .logger import Logger
 
 
 class EventType(Enum):
-    ConnectorData = 1  # Raw data from the connector only json parsed
-    Timeout = 2
-    HeadsetData = 3  # Parsed data from the headset contains all streamed attribtues (see Data class)
-    Blink = 4
-    HeadsetStatus = 5
-    SignalQuality = 6
+    Blink = 1  # Blink detection event
+    ConnectorData = 2  # Raw data from the connector, JSON-parsed
+    HeadsetData = 3  # Parsed data from the headset, contains all streamed attributes
+    HeadsetStatus = 4  # Status updates from the headset
+    SessionEvent = 5  # Events related to session
+    SignalQuality = 6  # Signal quality updates
+    Timeout = 7  # Timeout event
+
+
+@dataclass(kw_only=True)
+class Event:
+    event_type: EventType
+    timestamp: datetime = None
+
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
 
 
 class Subscription:
@@ -60,7 +73,7 @@ class EventManager(metaclass=SingletonMeta):
         """
         key = (event_type, listener)
         if listener in self._listeners[event_type]:
-            self._logger.info("Listener already exists")
+            self._logger.debug("Listener already exists")
             return self._supscriptions[key]
 
         self._listeners[event_type].append(listener)
@@ -75,7 +88,7 @@ class EventManager(metaclass=SingletonMeta):
         Unregister a callback function for a specific event type.
         """
         if listener not in self._listeners[event_type]:
-            self._logger.info("Listener does not exist")
+            self._logger.debug("Listener does not exist")
             return
 
         self._listeners[event_type].remove(listener)
@@ -83,7 +96,7 @@ class EventManager(metaclass=SingletonMeta):
         self._locks.pop(listener)
         self._supscriptions.pop((event_type, listener))
 
-    def emit(self, event_type: EventType, *args, **kwargs) -> None:
+    def emit(self, event: Event) -> None:
         """
         Emits event for all registered callbacks.
         Events are processed in order per callback.
@@ -92,11 +105,11 @@ class EventManager(metaclass=SingletonMeta):
             event_type: Event to trigger
             *args, **kwargs: Arguments for callbacks
         """
-        for listener in self._listeners[event_type]:
+        for listener in self._listeners[event.event_type]:
             q = self._queues[listener]
             lock = self._locks[listener]
 
-            q.put_nowait((event_type, args, kwargs))
+            q.put_nowait(event)
 
             if not lock.locked():
                 self._thread_pool.submit(self._process_event, listener)
@@ -108,8 +121,8 @@ class EventManager(metaclass=SingletonMeta):
 
         with lock:
             if not q.empty():
-                event, args, kwargs = q.get_nowait()
-                callback(*args, **kwargs)
+                event = q.get_nowait()
+                callback(event)
                 q.task_done()
 
                 if not q.empty():
