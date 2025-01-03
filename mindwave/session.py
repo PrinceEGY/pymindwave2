@@ -7,13 +7,13 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-from .headset import MindWaveMobile2
-from .utils.event_manager import EventManager
+from .headset import BlinkEvent, MindWaveMobile2
+from .utils.event_manager import Event, EventManager, EventType
 from .utils.logger import Logger
-from .utils.stream_parser import Data
+from .utils.stream_parser import HeadsetDataEvent
 
 
-class SessionEvent(Enum):
+class SessionSignal(Enum):
     SESSION_START = 1
     SESSION_END = 2
     BASELINE_START = 3
@@ -24,6 +24,14 @@ class SessionEvent(Enum):
     READY = 8
     CUE = 9
     MOTOR = 10
+
+
+@dataclass
+class SessionEvent(Event):
+    def __init__(self, signal: SessionSignal, class_name: str = None, timestamp: datetime = None):
+        super().__init__(event_type=EventType.SessionEvent, timestamp=timestamp)
+        self.signal = signal
+        self.class_name = class_name
 
 
 @dataclass
@@ -134,54 +142,55 @@ class Session:
 
         self._save_events()
 
-        self._logger.info(f"Session data saved to {filename}")
+        self._logger.info(f"Session collected data is saved to {self._save_dir}")
 
     def on_event(self, listener):
-        return self._event_manager.add_listener(SessionEvent, listener)
+        return self._event_manager.add_listener(EventType.SessionEvent, listener)
 
     def _events_processor(self):
-        for (event, *args), duration in self._event_generator():
+        for event, duration in self._event_generator():
             if self._stop_flag.is_set():
                 break
 
-            self._logger.info(f"Session event: {event.name}" + (f" - class: {args[0]}" if len(args) > 0 else ""))
-            curr_time = datetime.now().strftime("%H:%M:%S")
+            self._logger.info(
+                f"Session signal: {event.signal}" + (f" - class: {event.class_name}" if event.class_name else "")
+            )
             record = {
-                "time": curr_time,
-                "event": event.name,
-                "class": args[0] if len(args) > 0 else None,
+                "time": event.timestamp.strftime("%H:%M:%S"),
+                "signal": event.signal,
+                "class": event.class_name,
             }
 
             self._events.append(record)
-            self._event_manager.emit(event, *args)
+            self._event_manager.emit(event)
             self._stop_flag.wait(duration)
 
-            if event == SessionEvent.SESSION_END:
+            if event.signal == SessionSignal.SESSION_END:
                 self.stop()
 
     def _event_generator(self):
-        """Yields the session events in order in the form of ((Event, args), duration) tuple"""
+        """Yields the session events in order in the form of (SessionEvent, duration) tuple"""
         classes_events = self._setup_classes_events()
 
-        yield (SessionEvent.SESSION_START,), 1
-        yield (SessionEvent.BASELINE_START,), self.config.baseline_duration
-        yield (SessionEvent.BASELINE_END,), 0
+        yield SessionEvent(SessionSignal.SESSION_START), 1
+        yield SessionEvent(SessionSignal.BASELINE_START), self.config.baseline_duration
+        yield SessionEvent(SessionSignal.BASELINE_END), 1
 
         for class_event in classes_events:
-            yield (SessionEvent.TRIAL_START, class_event), 0
+            yield SessionEvent(SessionSignal.TRIAL_START, class_name=class_event), 1
 
-            yield (SessionEvent.REST,), self.config.rest_duration
+            yield SessionEvent(SessionSignal.REST), self.config.rest_duration
 
-            yield (SessionEvent.READY,), self.config.ready_duration
+            yield SessionEvent(SessionSignal.READY), self.config.ready_duration
 
-            yield (SessionEvent.CUE,), self.config.cue_duration
+            yield SessionEvent(SessionSignal.CUE), self.config.cue_duration
 
             motor_duration = self.config.motor_duration + random.uniform(0, self.config.extra_duration)
-            yield (SessionEvent.MOTOR,), motor_duration
+            yield SessionEvent(SessionSignal.MOTOR), motor_duration
 
-            yield (SessionEvent.TRIAL_END, class_event), 0
+            yield SessionEvent(SessionSignal.TRIAL_END, class_event), 1
 
-        yield (SessionEvent.SESSION_END,), 0
+        yield SessionEvent(SessionSignal.SESSION_END), 0
 
     def _setup_classes_events(self) -> list:
         classes_events = []
@@ -206,36 +215,32 @@ class Session:
             writer.writeheader()
             writer.writerows(self._events)
 
-        self._logger.info(f"Session events saved to {file_name}")
-
-    def _data_collator(self, data: Data):
-        self._logger.debug(f"Data received: {data}")
-        curr_time = datetime.now().strftime("%H:%M:%S")
+    def _data_collator(self, event: HeadsetDataEvent):
+        self._logger.debug(f"Data received: {event.data}")
         record = {
-            "time": curr_time,
-            "event": "headset_data",  # "headset_data" or "blink_data"
-            "attention": data.attention,
-            "meditation": data.meditation,
-            "delta": data.delta,
-            "theta": data.theta,
-            "lowAlpha": data.lowAlpha,
-            "highAlpha": data.highAlpha,
-            "lowBeta": data.lowBeta,
-            "highBeta": data.highBeta,
-            "lowGamma": data.lowGamma,
-            "highGamma": data.highGamma,
-            "raw_data": data.raw_data,
+            "time": event.timestamp.strftime("%H:%M:%S"),
+            "data_type": "headset_data",  # "headset_data" or "blink_data"
+            "attention": event.data.attention,
+            "meditation": event.data.meditation,
+            "delta": event.data.delta,
+            "theta": event.data.theta,
+            "lowAlpha": event.data.lowAlpha,
+            "highAlpha": event.data.highAlpha,
+            "lowBeta": event.data.lowBeta,
+            "highBeta": event.data.highBeta,
+            "lowGamma": event.data.lowGamma,
+            "highGamma": event.data.highGamma,
+            "raw_data": event.data.raw_data,
             "blink_strength": None,
         }
 
         self._data.append(record)
 
-    def _blinks_collator(self, blink_strength: int):
-        self._logger.debug(f"Blink detected: {blink_strength}")
-        curr_time = datetime.now().strftime("%H:%M:%S")
+    def _blinks_collator(self, event: BlinkEvent):
+        self._logger.debug(f"Blink detected: {event.blink_strength}")
         record = {
-            "time": curr_time,
-            "event": "blink_data",  # "headset_data" or "blink_data"
+            "time": event.timestamp.strftime("%H:%M:%S"),
+            "data_type": "blink_data",  # "headset_data" or "blink_data"
             "attention": None,
             "meditation": None,
             "delta": None,
@@ -247,7 +252,7 @@ class Session:
             "lowGamma": None,
             "highGamma": None,
             "raw_data": None,
-            "blink_strength": blink_strength,
+            "blink_strength": event.blink_strength,
         }
 
         self._data.append(record)

@@ -1,7 +1,17 @@
 import asyncio
 import json
+from dataclasses import dataclass
+
+from mindwave.utils.event_manager import Event, EventType
 
 from .utils.logger import Logger
+
+
+@dataclass
+class ConnectorDataEvent(Event):
+    def __init__(self, data: dict, timestamp=None):
+        super().__init__(event_type=EventType.ConnectorData, timestamp=timestamp)
+        self.data = data
 
 
 class ThinkGearConnector:

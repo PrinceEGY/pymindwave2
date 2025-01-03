@@ -2,11 +2,13 @@ import asyncio
 import json
 import threading
 import time
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 
-from .connector import ThinkGearConnector
+from .connector import ConnectorDataEvent, ThinkGearConnector
 from .utils.daemon_async import verbose
-from .utils.event_manager import EventManager, EventType
+from .utils.event_manager import Event, EventManager, EventType
 from .utils.logger import Logger
 from .utils.stream_parser import StreamParser
 
@@ -21,6 +23,33 @@ class ConnectionStatus(Enum):
     CONNECTION_LOST = 7
 
 
+@dataclass
+class BlinkEvent(Event):
+    def __init__(self, blink_strength: int, timestamp: datetime = None):
+        super().__init__(event_type=EventType.Blink, timestamp=timestamp)
+        self.blink_strength = blink_strength
+
+
+@dataclass
+class HeadsetStatusEvent(Event):
+    def __init__(self, status: ConnectionStatus, timestamp: datetime = None):
+        super().__init__(event_type=EventType.HeadsetStatus, timestamp=timestamp)
+        self.status = status
+
+
+@dataclass
+class SignalQualityEvent(Event):
+    def __init__(self, signal_quality: int, timestamp: datetime = None):
+        super().__init__(event_type=EventType.SignalQuality, timestamp=timestamp)
+        self.signal_quality = signal_quality
+
+
+@dataclass
+class TimeoutEvent(Event):
+    def __init__(self, timestamp: datetime = None):
+        super().__init__(event_type=EventType.Timeout, timestamp=timestamp)
+
+
 class MindWaveMobile2:
     def __init__(self, max_workers=4, event_loop=None, **tg_connector_args):
         super().__init__()
@@ -29,10 +58,11 @@ class MindWaveMobile2:
 
         self._logger = Logger.get_logger(self.__class__.__name__)
         self._tg_connector = ThinkGearConnector(**tg_connector_args)
-        self._event_manager = EventManager(max_workers=max_workers)  # Emit ConnectorData events
+        self._event_manager = EventManager(max_workers=max_workers)
         self._signal_quality = 0
         self._connection_status = ConnectionStatus.DISCONNECTED
         self._stream_parser = StreamParser()
+        self._parser_connector_supscription = None
         self._lock = asyncio.Lock()
         self._read_loop_task = None
 
@@ -50,7 +80,7 @@ class MindWaveMobile2:
         value = abs(value - 200)  # Invert the signal quality value
         value = value / 2  # Normalize the signal quality value to 0-100%
         if value != self._signal_quality:
-            self._event_manager.emit(EventType.SignalQuality, value)
+            self._event_manager.emit(SignalQualityEvent(signal_quality=value))
             self._logger.debug(f"Signal Quality value Changed: {value}%")
 
         self._signal_quality = float(value)
@@ -62,16 +92,13 @@ class MindWaveMobile2:
     @connection_status.setter
     def connection_status(self, value: ConnectionStatus):
         if value != self._connection_status:
-            self._event_manager.emit(EventType.HeadsetStatus, value)
+            self._event_manager.emit(HeadsetStatusEvent(status=value))
 
         if value == ConnectionStatus.CONNECTED and self._connection_status != ConnectionStatus.CONNECTED:
             # Connection changed to Connected
             self._logger.info("Connected to MindWaveMobile2 device!")
 
-            self._event_manager.add_listener(
-                event_type=EventType.ConnectorData,
-                listener=self._stream_parser,
-            )
+            self._parser_connector_supscription = self.on_connector_data(self._stream_parser)
 
         elif self._connection_status == ConnectionStatus.CONNECTED and value != ConnectionStatus.CONNECTED:
             # Connection changed from connected to something else
@@ -79,13 +106,10 @@ class MindWaveMobile2:
             if self.is_running:
                 self.stop()
 
-            self._event_manager.remove_listener(
-                event_type=EventType.ConnectorData,
-                listener=self._stream_parser,
-            )
+            self._parser_connector_supscription.detach()
 
             time.sleep(3)  # Wait for the read loop to stop
-            self._event_manager.emit(EventType.HeadsetStatus, ConnectionStatus.CONNECTION_LOST)
+            self._event_manager.emit(HeadsetStatusEvent(status=ConnectionStatus.CONNECTION_LOST))
 
         self._connection_status = value
 
@@ -171,7 +195,7 @@ class MindWaveMobile2:
 
     async def _timeout(self):
         await self._disconnect()
-        self._event_manager.emit(EventType.Timeout)
+        self._event_manager.emit(TimeoutEvent())
 
     async def _disconnect(self):
         async with self._lock:
@@ -183,10 +207,6 @@ class MindWaveMobile2:
             return self._tg_connector.disconnect()
 
     def _setup_event_loop(self) -> None:
-        def run_on_thread(loop):
-            asyncio.set_event_loop(loop)
-            loop.run_forever()
-
         # Event loop is provided
         if self._event_loop is not None:
             return
@@ -199,6 +219,11 @@ class MindWaveMobile2:
         # Event loop is not provided and no event loop is running in the current thread
         # create a new event loop in a new thread
         except RuntimeError:
+
+            def run_on_thread(loop: asyncio.AbstractEventLoop):
+                asyncio.set_event_loop(loop)
+                loop.run_forever()
+
             self._logger.info(
                 "Event loop is not provided and no Event loop is running in the current thread. "
                 "Creating a new event loop in a new thread."
@@ -215,7 +240,10 @@ class MindWaveMobile2:
                     try:
                         out = await self._tg_connector.read()
                         data = json.loads(out)
-                        self._event_manager.emit(EventType.ConnectorData, data)
+                        self._event_manager.emit(ConnectorDataEvent(data=data))
+                        if "blinkStrength" in data:
+                            self._event_manager.emit(BlinkEvent(blink_strength=data["blinkStrength"]))
+                            self._logger.debug(f"Blink Triggered with strength: {data['blinkStrength']}")
                     except json.JSONDecodeError:
                         self._logger.error(f"JSONDecodeError: {out}")
                     except UnicodeDecodeError as e:
@@ -226,9 +254,10 @@ class MindWaveMobile2:
                 else:
                     await asyncio.sleep(0.1)
 
-    def _update_status(self, data):
+    def _update_status(self, event: ConnectorDataEvent):
         # This is a naive way but there are no other ways to determine the connection status
         # Since the "status" field is not always present in the connector data
+        data = event.data
         if "status" in data:
             if data["status"] == "scanning":
                 self.connection_status = ConnectionStatus.SCANNING
