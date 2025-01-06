@@ -82,6 +82,9 @@ class Session:
         random.seed(time.perf_counter())
 
     def start(self) -> None:
+        if not self.headset.is_running:
+            self._logger.info("Headset is not running!, start headset before starting the session")
+            return
         if self.is_active:
             self._logger.info("Session is already active!")
             return

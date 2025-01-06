@@ -51,13 +51,13 @@ class TimeoutEvent(Event):
 
 
 class MindWaveMobile2:
-    def __init__(self, event_loop=None, **tg_connector_args):
+    def __init__(self, event_loop=None, tg_connector=None):
         super().__init__()
         self.is_running = False
         self._event_loop = event_loop
 
         self._logger = Logger.get_logger(self.__class__.__name__)
-        self._tg_connector = ThinkGearConnector(**tg_connector_args)
+        self._tg_connector = ThinkGearConnector() if tg_connector is None else tg_connector
         self._event_manager = EventManager()
         self._signal_quality = 0
         self._connection_status = ConnectionStatus.DISCONNECTED
