@@ -176,20 +176,20 @@ class MindWaveMobile2:
             while self.is_running:
                 if self.connection_status == ConnectionStatus.CONNECTED:
                     return True
-                if time.time() - self.start_connection_time > timeout:
-                    await self._timeout()
-                    return False
                 await asyncio.sleep(0.5)
+            return False
 
-        self.start_connection_time = time.time()
         if await self._tg_connector.connect():
             self._logger.info("Connecting to MindWaveMobile2 device...")
 
             if self._read_loop_task is None or self._read_loop_task.done():
                 self._read_loop_task = asyncio.create_task(self._read_loop())
-                self._read_loop_task
 
-            return await check_bluetooth_connection()
+            try:
+                return await asyncio.wait_for(check_bluetooth_connection(), timeout=timeout)
+            except asyncio.TimeoutError:
+                await self._timeout()
+                return False
 
         return False
 
@@ -300,3 +300,7 @@ class MindWaveMobile2:
     def on_connector_data(self, callback):
         """Add a callback function to the connector data events. The callback will be called when the connector data event is triggered."""
         return self._event_manager.add_listener(EventType.ConnectorData, callback)
+
+    def on_timeout(self, callback):
+        """Add a callback function to the timeout events. The callback will be called when the timeout event is triggered."""
+        return self._event_manager.add_listener(EventType.Timeout, callback)
