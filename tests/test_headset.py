@@ -56,16 +56,16 @@ def test_stop_device(mock_tg_connector):
 def test_multiple_start_attempts(mock_tg_connector, mocker):
     SingletonMeta._instances = {}
 
-    tg_connector = mock_tg_connector(scan_count=15, scan_sleep_duration=0.2)
+    tg_connector = mock_tg_connector(scan_count=50, scan_sleep_duration=0.2)
     headset = MindWaveMobile2(tg_connector=tg_connector)
 
     mock_callback = mocker.Mock()
     headset.on_timeout(mock_callback)
 
-    value = headset.start(timeout=1, n_tries=4)
-    assert value is True
-    assert headset.is_running is True
-    assert mock_callback.call_count == 3
+    value = headset.start(timeout=1, n_tries=5)
+    assert value is False
+    assert headset.is_running is False
+    assert mock_callback.call_count == 5
 
     # cleanup
     headset.stop()

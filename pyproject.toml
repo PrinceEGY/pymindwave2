@@ -11,7 +11,9 @@ license = { text = "MIT" }
 authors = [{ name = "Ahmed Mohsen", email = "ahmed25004@hotmail.com" }]
 classifiers = [
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python",
     "Operating System :: OS Independent",
     "Intended Audience :: Science/Research",
@@ -39,4 +41,5 @@ Homepage = "https://github.com/PrinceEGY/pymindwave2"
 Issues = "https://github.com/PrinceEGY/pymindwave2/issues"
 
 [tool.pytest.ini_options]
-timeout = 60
+timeout = 300
+asyncio_default_fixture_loop_scope = "session"

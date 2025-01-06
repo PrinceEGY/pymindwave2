@@ -39,7 +39,7 @@ async def test_connect_failure(mocker):
     assert tg_connector.st_writer is None
 
 
-@pytest.mark.asyncio(loop_scope="session")(loop_scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_connect_already_connected(mocker):
     tg_connector = ThinkGearConnector()
     mock_reader = mocker.AsyncMock()
