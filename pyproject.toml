@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pymindwave2"
+version = "1.0.0"
+description = "A Python package for seamless communication with Neurosky MindWave Mobile 2 headset."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Ahmed Mohsen", email = "ahmed25004@hotmail.com" }]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+]
+keywords = [
+    'bci',
+    'brain-computer interface',
+    'brainwaves',
+    'eeg',
+    'headset',
+    'mind control',
+    'mindwave',
+    'mindwave mobile',
+    'mindwave mobile 2',
+    'mindwavemobile',
+    'mindwavemobile2',
+    'motor imagery',
+    'neuroscience',
+    'neurosky',
+]
+
+[project.urls]
+Homepage = "https://github.com/PrinceEGY/pymindwave2"
+Issues = "https://github.com/PrinceEGY/pymindwave2/issues"
+
+[tool.pytest.ini_options]
+timeout = 15
