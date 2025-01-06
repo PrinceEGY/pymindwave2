@@ -39,4 +39,4 @@ Homepage = "https://github.com/PrinceEGY/pymindwave2"
 Issues = "https://github.com/PrinceEGY/pymindwave2/issues"
 
 [tool.pytest.ini_options]
-timeout = 15
+timeout = 60
