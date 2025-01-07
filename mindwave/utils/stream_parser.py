@@ -1,14 +1,33 @@
+"""MindWaveMobile2 Stream Parser Module."""
+
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Callable
 
 from mindwave.connector import ConnectorDataEvent
 
-from .event_manager import Event, EventManager, EventType
+from .event_manager import Event, EventManager, EventType, Subscription
 from .logger import Logger
 
 
 @dataclass
 class Data:
+    """A data container for storing the parsed data from the stream.
+
+    Attributes:
+        raw_data (list[int]): A list of 512 raw EEG readings.
+        attention (int): The attention level (0-100).
+        meditation (int): The meditation level (0-100).
+        delta (int): Power level in the delta frequency band.
+        theta (int): Power level in the theta frequency band.
+        lowAlpha (int): Power level in the low alpha frequency band.
+        highAlpha (int): Power level in the high alpha frequency band.
+        lowBeta (int): Power level in the low beta frequency band.
+        highBeta (int): Power level in the high beta frequency band.
+        lowGamma (int): Power level in the low gamma frequency band.
+        highGamma (int): Power level in the high gamma frequency band.
+    """
+
     raw_data: list[int] = field(default_factory=lambda: [0 for _ in range(512)])
     attention: int = 0
     meditation: int = 0
@@ -22,7 +41,15 @@ class Data:
     lowGamma: int = 0
     highGamma: int = 0
 
-    def update_data(self, **kwargs):
+    def update_data(self, **kwargs) -> None:
+        """Update the data attributes with the specified values.
+
+        Args:
+            **kwargs: A dictionary of attribute names and values to update.
+
+        Raises:
+            AttributeError: If an invalid attribute name is specified.
+        """
         for key, value in kwargs.items():
             if not hasattr(self, key):
                 raise AttributeError(f"Invalid attribute: {key}")
@@ -45,26 +72,51 @@ class Data:
 
 @dataclass
 class HeadsetDataEvent(Event):
-    def __init__(self, data: Data, timestamp: datetime = None):
-        super().__init__(event_type=EventType.HeadsetData)
+    """Headset Data Event.
+
+    Attributes:
+        data (Data): The parsed data from the stream.
+        timestamp (datetime): The timestamp of the event.
+    """
+
+    def __init__(self, data: Data, timestamp: datetime = None) -> None:
+        """Initializes a new HeadsetDataEvent instance.
+
+        Args:
+            data (Data): The parsed data from the stream.
+            timestamp (datetime, optional): The timestamp of the event.
+        """
+        super().__init__(event_type=EventType.HeadsetData, timestamp=timestamp)
         self.data = data
 
 
 class StreamParser:
-    """
-    Can be thought of as a wrapper class for Connector Raw data. It processes the incoming data from the stream and emits events based on the data received.
+    """Processes and manages the data stream from a MindWave headset.
+
+    This class acts as a wrapper for the raw connector data, processing incoming
+    data streams and emitting events when complete data sets are available. It
+    handles both raw EEG data (collected in 512-sample blocks) and processed
+    metrics (attention, meditation, etc.).
+
+    This ensures an event is emitted roughly every second.
     """
 
     def __init__(self):
+        """Initializes a new StreamParser instance."""
         self._logger = Logger.get_logger(self.__class__.__name__)
         self.event_manager = EventManager()
         self._data = Data()
         self._raw_data = []
-        self._raw_completed = False
+        self._raw_completed: bool = False
 
-    def stream_data(self, event: ConnectorDataEvent):
-        """
-        Processes the incoming data and stream it again.
+    def stream_data(self, event: ConnectorDataEvent) -> None:
+        """Processes incoming data and emits a HeadsetDataEvent data is complete.
+
+        Handles the streaming of data from the connector, processes it, and emits
+        events when complete data is available.
+
+        Args:
+            event: The incoming data event from the connector.
         """
         self._parse_data(event.data)
         if self._raw_completed:
@@ -72,13 +124,27 @@ class StreamParser:
             self.reset_data()
             self._logger.debug(f"data streamed: {self._data}")
 
-    def __call__(self, data):
-        self.stream_data(data)
+    def on_data(self, listener: Callable[[HeadsetDataEvent], Any]) -> Subscription:
+        """Registers a listener for headset data events.
 
-    def add_listener(self, event_type, listener):
-        return self.event_manager.add_listener(event_type, listener)
+        Args:
+            listener: A callback function that will be called with HeadsetDataEvent
+                instances when new data is available.
 
-    def _parse_data(self, data: dict):
+        Returns:
+            A Subscription object that can be used to unsubscribe the listener.
+        """
+        return self.event_manager.add_listener(EventType.HeadsetData, listener)
+
+    def _parse_data(self, data: dict) -> None:
+        """Parses incoming data and updates internal state.
+
+        Processes both processed metrics (eSense) and raw EEG data, updating the
+        internal Data object accordingly.
+
+        Args:
+            data: Dictionary containing either eSense metrics or raw EEG data.
+        """
         if "eSense" in data:
             self._data.update_data(**data["eSense"], **data["eegPower"])
         elif "rawEeg" in data:
@@ -89,7 +155,8 @@ class StreamParser:
         else:
             self._logger.debug(f"Unknown data: {data}")
 
-    def reset_data(self):
+    def reset_data(self) -> None:
+        """Resets all internal data structures to their initial state."""
         self._data = Data()
         self._raw_data = []
         self._raw_completed = False

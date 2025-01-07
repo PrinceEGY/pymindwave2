@@ -1,3 +1,10 @@
+"""Session module for handling the EEG data collection sessions.
+
+This module provides functionality for creating and managing sessions that record data
+streamed from a MindWave Mobile 2 EEG headset. It handles session configuration,
+event management, data collection, and storage.
+"""
+
 import csv
 import random
 import threading
@@ -6,14 +13,17 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any, Callable
 
 from .headset import BlinkEvent, MindWaveMobile2
-from .utils.event_manager import Event, EventManager, EventType
+from .utils.event_manager import Event, EventManager, EventType, Subscription
 from .utils.logger import Logger
 from .utils.stream_parser import HeadsetDataEvent
 
 
 class SessionSignal(Enum):
+    """Enumeration of signals emitted during a session."""
+
     SESSION_START = 1
     SESSION_END = 2
     BASELINE_START = 3
@@ -28,7 +38,24 @@ class SessionSignal(Enum):
 
 @dataclass
 class SessionEvent(Event):
-    def __init__(self, signal: SessionSignal, class_name: str = None, timestamp: datetime = None):
+    """Session Event.
+
+    Attributes:
+        signal (SessionSignal): The signal emitted during the session.
+        class_name (str): The class name associated with the event.
+        (e.g., the class being imagined during a motor imagery task).
+        timestamp (datetime): The timestamp of the event.
+    """
+
+    def __init__(self, signal: SessionSignal, class_name: str = None, timestamp: datetime = None) -> None:
+        """Initializes a new SessionEvent instance.
+
+        Args:
+            signal (SessionSignal): The signal emitted during the session.
+            class_name (str, optional): The class name associated with the event.
+            (e.g., the class being imagined during a motor imagery task).
+            timestamp (datetime, optional): The timestamp of the event.
+        """
         super().__init__(event_type=EventType.SessionEvent, timestamp=timestamp)
         self.signal = signal
         self.class_name = class_name
@@ -36,6 +63,24 @@ class SessionEvent(Event):
 
 @dataclass
 class SessionConfig:
+    """Configuration settings for a session.
+
+    Attributes:
+        user_name (str): Name of the user.
+        user_age (int): Age of the user.
+        user_gender (str): Gender of the user.
+        classes (list): List of class names for the session.
+        trials (int): Number of trials per class.
+        baseline_duration (float): Duration of the baseline phase in seconds.
+        rest_duration (float): Duration of the rest phase in seconds.
+        ready_duration (float): Duration of the ready phase in seconds.
+        cue_duration (float): Duration of the cue phase in seconds.
+        motor_duration (float): Duration of the motor phase in seconds.
+        extra_duration (float): Additional random duration added to motor phase.
+        save_dir (str): Directory to save session data.
+        capture_blinks (bool): Whether to capture blink events.
+    """
+
     user_name: str = None
     user_age: int = None
     user_gender: str = None
@@ -47,18 +92,33 @@ class SessionConfig:
     ready_duration: float = 1
     cue_duration: float = 1.5
     motor_duration: float = 4
-    extra_duration: float = 0  # Random duration to be added to the motor duration in range [0, extra_duration]
+    # Random duration to be added to the motor duration in range [0, extra_duration]
+    extra_duration: float = 0
     save_dir: str = "./sessions/"
     capture_blinks: bool = False
 
 
 class Session:
+    """Manages EEG headset data collection sessions.
+
+    This class handles the configuration, execution, and data storage of EEG data collection sessions.
+
+    It also emits signals at different stages of the session, this can be used to build a UI on top of it.
+    """
+
     def __init__(
         self,
         headset: MindWaveMobile2,
         config: SessionConfig,
         lazy_start: bool = True,
-    ):
+    ) -> None:
+        """Initializes a new Session instance.
+
+        Args:
+            headset (MindWaveMobile2): The MindWave Mobile 2 headset instance.
+            config (SessionConfig): The configuration settings for the session.
+            lazy_start (bool, optional): Whether to start the session immediately after initialization.
+        """
         self._logger = Logger.get_logger(self.__class__.__name__)
         self.headset = headset
         self.config = config
@@ -82,6 +142,10 @@ class Session:
         random.seed(time.perf_counter())
 
     def start(self) -> None:
+        """Starts the data collection session.
+
+        NOTE: The headset must be running before starting the session.
+        """
         if not self.headset.is_running:
             self._logger.info("Headset is not running!, start headset before starting the session")
             return
@@ -109,6 +173,7 @@ class Session:
         self._logger.info(f"New Session started at {self.start_time.strftime('%H:%M:%S')}")
 
     def stop(self) -> None:
+        """Stops the data collection session."""
         if not self.is_active:
             self._logger.info("Session is not active!")
             return
@@ -126,6 +191,7 @@ class Session:
         self._logger.info(f"Session ended at {self.end_time.strftime('%H:%M:%S')}")
 
     def save(self):
+        """Saves the collected session data and events to disk."""
         if self.is_active:
             self._logger.info("Session is still active!, stop the session before saving")
             return
@@ -137,7 +203,7 @@ class Session:
             self._create_user_dir()
 
         filename = f"{self._save_dir}/data.csv"
-        with open(filename, mode="w", newline="") as file:
+        with open(filename, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.DictWriter(file, fieldnames=self._data[0].keys())
             writer.writeheader()
             writer.writerows(self._data)
@@ -146,10 +212,19 @@ class Session:
 
         self._logger.info(f"Session collected data is saved to {self._save_dir}")
 
-    def on_event(self, listener):
+    def on_event(self, listener: Callable[[SessionEvent], Any]) -> Subscription:
+        """Registers a listener for session events.
+
+        Args:
+            listener: The listener function to be called when a session event is emitted.
+
+        Returns:
+            Subscription: A Subscription object that can be used to unsubscribe the listener.
+        """
         return self._event_manager.add_listener(EventType.SessionEvent, listener)
 
-    def _events_processor(self):
+    def _events_processor(self) -> None:
+
         for event, duration in self._event_generator():
             if self._stop_flag.is_set():
                 break
@@ -171,7 +246,7 @@ class Session:
                 self.stop()
 
     def _event_generator(self):
-        """Yields the session events in order in the form of (SessionEvent, duration) tuple"""
+        """Yield the session events in order in the form of (SessionEvent, duration) tuple."""
         classes_events = self._setup_classes_events()
 
         yield SessionEvent(SessionSignal.SESSION_START), 1
@@ -203,7 +278,7 @@ class Session:
 
         return classes_events
 
-    def _save_events(self):
+    def _save_events(self) -> None:
         if len(self._events) == 0:
             self._logger.info("No session events to save!")
             return
@@ -212,12 +287,12 @@ class Session:
             self._create_user_dir()
 
         file_name = f"{self._save_dir}/events.csv"
-        with open(file_name, mode="w", newline="") as file:
+        with open(file_name, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.DictWriter(file, fieldnames=self._events[0].keys())
             writer.writeheader()
             writer.writerows(self._events)
 
-    def _data_collator(self, event: Event):
+    def _data_collator(self, event: Event) -> None:
         self._logger.debug(f"Session headset event received: {event}")
         record = {
             "time": event.timestamp.strftime("%H:%M:%S"),
@@ -267,9 +342,9 @@ class Session:
         user_dir.mkdir(parents=True, exist_ok=True)
         self._save_dir = str(user_dir)
 
-    def _save_info(self):
+    def _save_info(self) -> None:
         file_name = f"{self._save_dir}/session.info"
-        with open(file_name, mode="w") as file:
+        with open(file_name, mode="w", encoding="utf-8") as file:
             file.write(" User info ".center(40, "=") + "\n\n")
             file.write(f"user_name: {self.config.user_name}\n")
             file.write(f"user_age: {self.config.user_age}\n")

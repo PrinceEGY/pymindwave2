@@ -1,3 +1,5 @@
+"""Event manager for event-driven programming with multiple listeners."""
+
 import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -5,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from queue import Queue
-from typing import Callable
+from typing import Any, Callable
 
 from mindwave.utils.singleton_meta import SingletonMeta
 
@@ -13,17 +15,33 @@ from .logger import Logger
 
 
 class EventType(Enum):
-    Blink = 1  # Blink detection event
-    ConnectorData = 2  # Raw data from the connector, JSON-parsed
-    HeadsetData = 3  # Parsed data from the headset, contains all streamed attributes
-    HeadsetStatus = 4  # Status updates from the headset
-    SessionEvent = 5  # Events related to session
-    SignalQuality = 6  # Signal quality updates
-    Timeout = 7  # Timeout event
+    """Enumeration of event types that can be emitted by the event manager."""
+
+    Blink = 1
+    """Blink detection event."""
+    ConnectorData = 2
+    """Raw data from the connector, JSON-parsed."""
+    HeadsetData = 3
+    """Parsed data from the headset, contains all streamed attributes."""
+    HeadsetStatus = 4
+    """Status updates from the headset."""
+    SessionEvent = 5
+    """Events related to session."""
+    SignalQuality = 6
+    """Signal quality updates."""
+    Timeout = 7
+    """Timeout event."""
 
 
 @dataclass(kw_only=True)
 class Event:
+    """Base class for events that can be emitted by the event manager.
+
+    Attributes:
+        event_type (EventType): The type of event.
+        timestamp (datetime): The timestamp of the event. Defaults to the current time.
+    """
+
     event_type: EventType
     timestamp: datetime = None
 
@@ -33,17 +51,38 @@ class Event:
 
 
 class Subscription:
-    def __init__(self, event_type: EventType, listener: Callable):
+    """An object that manages the subscription of a listener to an event type.
+
+    Attributes:
+        event_type (EventType): The type of event the listener is subscribed to.
+        listener (Callable): The listener callback.
+    """
+
+    def __init__(self, event_type: EventType, listener: Callable[[Event], Any]) -> None:
+        """Initialize the subscription object.
+
+        Args:
+            event_type (EventType): The type of event the listener is subscribed to.
+            listener (Callable): The listener callback.
+        """
         self.event_type = event_type
         self.listener = listener
 
-    def detach(self):
+    def detach(self) -> None:
+        """Remove the listener from the event manager."""
         EventManager().remove_listener(self.event_type, self.listener)
+
+    def is_attached(self) -> bool:
+        """Check if the listener is attached to the event manager.
+
+        Returns:
+            bool: True if the listener is attached, False otherwise.
+        """
+        return EventManager().is_attached(self.event_type, self.listener)
 
 
 class EventManager(metaclass=SingletonMeta):
-    """
-    Event manager that allows for event-driven programming with multiple listeners.
+    """Event manager that allows for event-driven programming with multiple listeners.
 
     Each listener is guaranteed to receive events in order, but different listeners process independently.
 
@@ -54,11 +93,10 @@ class EventManager(metaclass=SingletonMeta):
     """
 
     def __init__(self, max_workers: int = None) -> None:
-        """
-        Initialize event manager with thread pool.
+        """Initialize the event manager.
 
         Args:
-            max_workers: Maximum number of threads to use
+            max_workers (int, optional): The maximum number of worker threads in the thread pool.
         """
         self._logger = Logger.get_logger(self.__class__.__name__)
         self._listeners = defaultdict(list)
@@ -67,9 +105,16 @@ class EventManager(metaclass=SingletonMeta):
         self._supscriptions = defaultdict(tuple)
         self._thread_pool = ThreadPoolExecutor(max_workers)
 
-    def add_listener(self, event_type: EventType, listener: Callable) -> Subscription:
-        """
-        Register a callback function for a specific event type.
+    def add_listener(self, event_type: EventType, listener: Callable[[Event], Any]) -> Subscription:
+        """Adds a new listener for the specified event type.
+
+        Args:
+            event_type (EventType): The type of event to listen for.
+            listener (function): The callback function to be called when
+                events of the specified type occur.
+
+        Returns:
+            Subscription: A subscription object that can be used to manage the listener.
         """
         key = (event_type, listener)
         if listener in self._listeners[event_type]:
@@ -83,9 +128,12 @@ class EventManager(metaclass=SingletonMeta):
         self._supscriptions[key] = Subscription(*key)
         return self._supscriptions[key]
 
-    def remove_listener(self, event_type: EventType, listener: Callable) -> None:
-        """
-        Unregister a callback function for a specific event type.
+    def remove_listener(self, event_type: EventType, listener: Callable[[Event], Any]) -> None:
+        """Removes a listener from the specified event type.
+
+        Args:
+            event_type (EventType): The type of event to remove the listener from.
+            listener (function): The callback function to remove.
         """
         if listener not in self._listeners[event_type]:
             self._logger.debug("Listener does not exist")
@@ -97,13 +145,10 @@ class EventManager(metaclass=SingletonMeta):
         self._supscriptions.pop((event_type, listener))
 
     def emit(self, event: Event) -> None:
-        """
-        Emits event for all registered callbacks.
-        Events are processed in order per callback.
+        """Emits an event to all listeners of the event type.
 
         Args:
-            event_type: Event to trigger
-            *args, **kwargs: Arguments for callbacks
+            event (Event): The event to emit.
         """
         for listener in self._listeners[event.event_type]:
             q = self._queues[listener]
@@ -114,8 +159,16 @@ class EventManager(metaclass=SingletonMeta):
             if not lock.locked():
                 self._thread_pool.submit(self._process_event, listener)
 
-    def _process_event(self, callback) -> None:
-        """Process queued events for a callback until queue is empty."""
+    def _process_event(self, callback: Callable[[Event], Any]) -> None:
+        """Processes an event for a specific callback.
+
+        This method is called by the thread pool to process events for a specific
+        callback. It ensures events are processed in order and manages the callback's
+        lock to prevent concurrent processing.
+
+        Args:
+            callback (function): The callback to process the event for.
+        """
         q = self._queues[callback]
         lock = self._locks[callback]
 
@@ -127,3 +180,15 @@ class EventManager(metaclass=SingletonMeta):
 
                 if not q.empty():
                     self._thread_pool.submit(self._process_event, callback)
+
+    def is_attached(self, event_type: EventType, listener: Callable[[Event], Any]) -> bool:
+        """Check if a listener is attached to the event manager.
+
+        Args:
+            event_type (EventType): The type of event the listener is subscribed to.
+            listener (function): The listener callback.
+
+        Returns:
+            bool: True if the listener is attached, False otherwise.
+        """
+        return listener in self._listeners[event_type]
