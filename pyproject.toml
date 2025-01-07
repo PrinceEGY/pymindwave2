@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pymindwave2"
 version = "1.0.0"
+requires-python = ">=3.10"
 description = "A Python package for seamless communication with Neurosky MindWave Mobile 2 headset."
 readme = "README.md"
 license = { text = "MIT" }
@@ -43,3 +44,22 @@ Issues = "https://github.com/PrinceEGY/pymindwave2/issues"
 [tool.pytest.ini_options]
 timeout = 300
 asyncio_default_fixture_loop_scope = "session"
+
+[tool.flake8]
+statistics = true
+count = true
+max-complexity = 10
+max-line-length = 120
+per-file-ignores = ["tests/*: D", "*/__init__.py: F401, D"]
+ignore = ["E203", "W503", "D105"]
+docstring-convention = "google"
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "venv",
+    ".venv",
+    ".vscode",
+    ".idea",
+]

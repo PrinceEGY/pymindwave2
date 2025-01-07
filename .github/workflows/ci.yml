@@ -1,4 +1,4 @@
-name: Run Tests
+name: CI
 
 on:
   push:
@@ -29,8 +29,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-timeout pytest-mock
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest pytest-asyncio pytest-timeout pytest-mock flake8 Flake8-pyproject flake8-docstrings flake8-bugbear
+
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --select=E9,F63,F7,F82,E101,B002,B004,B006,B015,B018,B025  --show-source
+          # exit-zero treats all errors as warnings.
+          flake8 . --exit-zero
 
       - name: Run tests with pytest
         run: |
