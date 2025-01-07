@@ -103,7 +103,7 @@ def test_blink_collection(mocker, tmp_path, capture_blinks):
         event_manager.emit(BlinkEvent(mock_data))
     time.sleep(0.5)
 
-    if capture_blinks == False:
+    if capture_blinks is False:
         assert session._blinks_subscription is None
         assert len(session._data) == 0
     else:

@@ -31,7 +31,7 @@ def test_start_timeout(mock_tg_connector, mocker):
 
     headset = MindWaveMobile2(tg_connector=tg_connector)
     mock_callback = mocker.Mock()
-    subscription = headset.on_timeout(mock_callback)
+    _ = headset.on_timeout(mock_callback)
 
     value = headset.start(timeout=1, n_tries=1)
     assert value is False

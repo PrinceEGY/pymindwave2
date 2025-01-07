@@ -15,6 +15,7 @@ async def test_connect_success(mocker):
     mock_writer = mocker.Mock()
 
     mocker.patch("asyncio.open_connection", return_value=(mock_reader, mock_writer))
+    mock_writer.is_closing.return_value = False
 
     result = await tg_connector.connect()
 
@@ -127,6 +128,7 @@ def test_write(mocker):
     tg_connector = ThinkGearConnector()
     mock_writer = mocker.Mock()
     tg_connector.st_writer = mock_writer
+    tg_connector.st_writer.is_closing.return_value = False
     test_data = b"test_data"
 
     tg_connector.write(test_data)
