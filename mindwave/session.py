@@ -212,8 +212,8 @@ class Session:
 
         self._logger.info(f"Session collected data is saved to {self._save_dir}")
 
-    def on_event(self, listener: Callable[[SessionEvent], Any]) -> Subscription:
-        """Registers a listener for session events.
+    def on_signal(self, listener: Callable[[SessionEvent], Any]) -> Subscription:
+        """Registers a listener for session signals.
 
         Args:
             listener: The listener function to be called when a session event is emitted.
