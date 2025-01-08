@@ -125,7 +125,7 @@ def test_event_generation(mocker, tmp_path):
         events_count += 1
 
     mock_callback = mocker.Mock()
-    session.on_event(mock_callback)
+    session.on_signal(mock_callback)
     session.start()
 
     time.sleep(1)
