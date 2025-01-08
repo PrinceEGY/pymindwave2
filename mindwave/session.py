@@ -104,6 +104,20 @@ class Session:
     This class handles the configuration, execution, and data storage of EEG data collection sessions.
 
     It also emits signals at different stages of the session, this can be used to build a UI on top of it.
+
+    Session flow:
+
+    - Session Start signal: Indicates the start of the session.
+    - Baseline Start signal: Indicates the start of the baseline phase.
+    - Baseline End signal: Indicates the end of the baseline phase.
+    for trial in range(trials*len(classes)):
+        - Trial Start signal: Indicates the start of a new trial associated with a class.
+        - Rest signal: Indicates the rest phase before starting the motor imagery task.
+        - Ready signal: Indicates the ready phase before the cue.
+        - Cue signal: Indicates the cue phase for the motor imagery task.
+        - Motor signal: Indicates the start of the motor imagery task.
+        - Trial End signal: Indicates the end of the trial associated with a class.
+    - Session End signal: Indicates the end of the session.
     """
 
     def __init__(
