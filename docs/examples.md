@@ -18,12 +18,12 @@ if success:  # if the headset is connected successfully
     session = Session(headset, config=sess_config)
 
     while headset.signal_quality != 100:
-        pass  # wait for the user to wear the headset properly
+        time.sleep(1)  # wait for the user to wear the headset properly
 
     session.start()  # Start recording data
     
     while session.is_active:
-        pass  # wait for the session to finish
+        time.sleep(1)  # wait for the session to finish
     
     session.save()  # save the recorded data to disk
 ```
@@ -56,7 +56,7 @@ if sucess:
     subscription = headset.on_data(meditation_handler)
 
     while some_condition:
-        pass
+        time.sleep(1)
 
     subscription.detach()  # Unsubscribe from the event
 ```
