@@ -9,7 +9,7 @@ from enum import Enum
 from queue import Queue
 from typing import Any, Callable
 
-from mindwave.utils.singleton_meta import SingletonMeta
+from .singleton_meta import SingletonMeta
 
 from .logger import Logger
 

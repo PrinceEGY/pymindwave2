@@ -21,7 +21,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
-from mindwave.utils.event_manager import Event, EventType
+from .utils.event_manager import Event, EventType
 
 from .utils.logger import Logger
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable
 
-from mindwave.connector import ConnectorDataEvent
+from ..connector import ConnectorDataEvent
 
 from .event_manager import Event, EventManager, EventType, Subscription
 from .logger import Logger
