@@ -40,6 +40,10 @@ keywords = [
 [project.urls]
 Homepage = "https://github.com/PrinceEGY/pymindwave2"
 Issues = "https://github.com/PrinceEGY/pymindwave2/issues"
+Documentation = "https://princeegy.github.io/pymindwave2/"
+
+[tool.setuptools]
+package-dir = { "pymindwave2" = "mindwave" }
 
 [tool.pytest.ini_options]
 timeout = 300
