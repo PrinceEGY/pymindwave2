@@ -48,6 +48,7 @@ nav:
       - Events: api/events.md
       - Enums: api/enums.md
       - ThinkGear Connector: api/tg_connector.md
+      - Logger: api/logger.md
 
 markdown_extensions:
   - pymdownx.highlight:

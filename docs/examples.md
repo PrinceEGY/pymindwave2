@@ -104,6 +104,16 @@ def session_handler(event:SessionEvent):
 
 subscription = session.on_signal(session_handler)
 ```
-for the full list of Session Signals, check [SessionSignal](https://princeegy.github.io/pymindwave2/api/enums/#mindwave.session.SessionSignal)
+for the full list of Session Signals, check [SessionSignal](https://princeegy.github.io/pymindwave2/api/enums/#mindwave.session.SessionSignal).
 
-for the data collection session workflow, check [Session Workflow](https://princeegy.github.io/pymindwave2/api/session/#mindwave.session.Session)
+for the data collection session workflow, check [Session Workflow](https://princeegy.github.io/pymindwave2/api/session/#mindwave.session.Session).
+
+---
+## Logging
+The module has different levels of logging, you can change the logging level to see more or less information, as well as logging to a file or console options.
+Note: if you want to configure the logger, do it before initializing any object from the module
+```python linenums="1"
+from pymindwave2 import Logger
+Logger.configure_logger(level="DEBUG", file_path="mindwave.log", mode="w", console_output=False)
+```
+for more details about the logger, check [Logger](https://princeegy.github.io/pymindwave2/api/logger/#mindwave.logger.Logger).
