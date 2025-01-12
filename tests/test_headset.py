@@ -63,6 +63,7 @@ def test_multiple_start_attempts(mock_tg_connector, mocker):
     headset.on_timeout(mock_callback)
 
     value = headset.start(timeout=1, n_tries=5)
+    time.sleep(0.5)  # wait for the timeouts to be called
     assert value is False
     assert headset.is_running is False
     assert mock_callback.call_count == 5
