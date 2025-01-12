@@ -121,8 +121,8 @@ class StreamParser:
         self._parse_data(event.data)
         if self._raw_completed:
             self.event_manager.emit(HeadsetDataEvent(data=self._data))
-            self.reset_data()
             self._logger.debug(f"data streamed: {self._data}")
+            self.reset_data()
 
     def on_data(self, listener: Callable[[HeadsetDataEvent], Any]) -> Subscription:
         """Registers a listener for headset data events.
