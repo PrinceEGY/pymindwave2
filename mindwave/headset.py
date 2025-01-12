@@ -191,13 +191,14 @@ class MindWaveMobile2:
 
     @signal_quality.setter
     def signal_quality(self, value: int) -> None:
-        value = abs(value - 200)  # Invert the signal quality value
-        value = value / 2  # Normalize the signal quality value to 0-100%
-        if value != self._signal_quality:
-            self._event_manager.emit(SignalQualityEvent(signal_quality=value))
-            self._logger.debug(f"Signal Quality value Changed: {value}%")
+        signal_inverted = abs(value - 200)
+        signal_normalized = signal_inverted / 2  # Normalize the signal quality value to 0-100%
 
-        self._signal_quality = float(value)
+        if signal_normalized != self._signal_quality:
+            self._event_manager.emit(SignalQualityEvent(signal_quality=signal_normalized))
+            self._logger.debug(f"Signal Quality value Changed: {signal_normalized}%")
+
+        self._signal_quality = signal_normalized
 
     @property
     def connection_status(self) -> ConnectionStatus:
